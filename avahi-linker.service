@@ -5,6 +5,9 @@ Requires=avahi-daemon.service
 [Service]
 Type=simple
 ExecStart=/usr/bin/avahi-linker
+TimeoutSec=5
+KillMode=process
+KillSignal=SIGINT
 
 [Install]
 WantedBy=multi-user.target
