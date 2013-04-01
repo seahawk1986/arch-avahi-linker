@@ -14,7 +14,7 @@ backup=("etc/avahi-linker/default.cfg")
 source=("avahi-linker.py"
         "default.cfg"
         "avahi-linker.service")
-md5sums=('81274930b384ed3aeb2281392ec825ed'
+md5sums=('e8312d71f2f11e6944b118c49b9247d8'
          '4ea2fea73769232361478cc504922fe3'
          '3c9a120902fe9eeda050c5dd313de6b9')
 

@@ -19,6 +19,7 @@ import codecs
 class Config:
     def __init__(self, config='/etc/avahi-linker/default.cfg'):
         parser = SafeConfigParser()
+        parser.optionxform = unicode
         with codecs.open(config, 'r', encoding='utf-8') as f:
             parser.readfp(f)
         if parser.has_option('targetdirs', 'media'):
