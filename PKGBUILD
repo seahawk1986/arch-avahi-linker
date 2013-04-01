@@ -8,7 +8,7 @@ arch=('x86_64')
 url=""
 license=('GPL2')
 groups=()
-depends=('python2-gobject2' 'python2-dbus' "python2-gobject" 'autofs')
+depends=('python2-gobject2' 'python2-dbus' "python2-gobject" 'autofs' 'avahi')
 provides=('$pkgname')
 backup=("etc/avahi-linker/default.cfg")
 source=("avahi-linker.py"
@@ -16,7 +16,8 @@ source=("avahi-linker.py"
         "avahi-linker.service")
 md5sums=('81274930b384ed3aeb2281392ec825ed'
          '4ea2fea73769232361478cc504922fe3'
-         '5d44dc2066a225e0f09faf7fdaef85d1')
+         '3c9a120902fe9eeda050c5dd313de6b9')
+
 
 package() {
   install -Dm755 avahi-linker.py "$pkgdir/usr/bin/avahi-linker"
