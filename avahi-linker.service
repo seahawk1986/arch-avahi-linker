@@ -1,0 +1,10 @@
+[Unit]
+Description=Avahi linker
+Requires=avahi-daemon.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/avahi-linker
+
+[Install]
+WantedBy=multi-user.target
