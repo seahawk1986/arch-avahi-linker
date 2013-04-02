@@ -1,11 +1,11 @@
 #!/usr/bin/python2
 import dbus, gobject, avahi
 import atexit
+import gettext
 import os
 import errno
 import signal
 import sys
-from collections import namedtuple
 from dbus import DBusException
 from dbus.mainloop.glib import DBusGMainLoop
 
@@ -34,6 +34,10 @@ class Config:
             self.autofsdir = parser.get('options', 'autofsdir')
         else:
             self.autofsdir = "/net"
+        if parser.has_option('options', 'use_i18n'):
+            self.use_i18n = parser.getboolean('options', 'use_i18n')
+        else:
+            self.use_i18n = False
         if parser.has_option('options', 'nfs_suffix'):
             self.nfs_suffix = parser.get('options', 'nfs_suffix')
         else:
@@ -54,8 +58,12 @@ class LocalLinker:
     def __init__(self, config):
         self.config = config
         for subtype, localdir in config.localdirs.iteritems():
+            if self.config.use_i18n is True:
+                subtype = get_translation(subtype)[0]
             self.create_link(localdir, os.path.join(config.mediadir, subtype, "local"))
         for subtype, netdir in config.staticmounts.iteritems():
+            if self.config.use_i18n is True:
+                subtype = get_translation(subtype)[0]
             localdir = os.path.join(self.config.autofsdir, netdir)
             host = netdir.split('/')[0]
             print host
@@ -64,9 +72,13 @@ class LocalLinker:
     def unlink_all(self):
         for subtype, localdir in self.config.localdirs.iteritems():
             #print "unlink %s" % os.path.join(self.config.mediadir, subtype, "local")
+            if self.config.use_i18n is True:
+                subtype = get_translation(subtype)[0]
             self.unlink(os.path.join(self.config.mediadir, subtype, "local"))
         for subtype, netdir in config.staticmounts.iteritems():
             localdir = os.path.join(self.config.autofsdir, netdir)
+            if self.config.use_i18n is True:
+                subtype = get_translation(subtype)[0]
             host = netdir.split('/')[0]
             self.unlink(os.path.join(self.config.mediadir, subtype, host))
 
@@ -102,7 +114,9 @@ class AvahiService:
     def service_resolved(self, interface, protocol, name, type,
                  domain, host, aprotocol, address,
                  port, txt, flags):
-        share = nfsService(config = config,
+
+        share = nfsService(
+                       config = config,
                        interface=interface,
                        protocol=protocol, 
                        name=name, 
@@ -144,8 +158,14 @@ class nfsService:
                 self.path = value
             elif key == "subtype":
                 self.subtype = value
+                print self.subtype
+                if self.config.use_i18n is True:
+                    self.subtype = get_translation(self.subtype)[0]
+                    print "translated: %s" % self.subtype
             elif key == "category":
                 self.category = value
+                if self.config.use_i18n is True:
+                    self.category = get_translation(self.category)[0]
        self.origin = self.get_origin()
        self.target = self.get_target()
        self.create_link()
@@ -209,6 +229,17 @@ def mkdir_p(path):
             pass
         else: raise
 
+def get_translation(*args):
+    answer = []
+    for arg in args:
+        elsub = []
+        for element in arg.split('/'):
+            elsub.append(_("%s" % element))
+        element = "/".join(elsub)
+        answer.append(element)
+    return answer
+            
+
 def sigint(): #signal, frame):
     #print "got %s" % signal
     locallinker.unlink_all()
@@ -216,32 +247,30 @@ def sigint(): #signal, frame):
     gobject.MainLoop().quit()
     sys.exit(0)
 
+if __name__ == "__main__":
 
-loop = DBusGMainLoop()
+    loop = DBusGMainLoop()
 
-bus = dbus.SystemBus(mainloop=loop)
-config = Config()
-locallinker = LocalLinker(config)
-server = dbus.Interface( bus.get_object(avahi.DBUS_NAME, '/'),
+    bus = dbus.SystemBus(mainloop=loop)
+    gettext.install('avahi-linker', '/usr/share/locale', unicode=1)
+    config = Config()
+    locallinker = LocalLinker(config)
+    server = dbus.Interface( bus.get_object(avahi.DBUS_NAME, '/'),
         'org.freedesktop.Avahi.Server')
 
-sbrowser = dbus.Interface(bus.get_object(avahi.DBUS_NAME,
+    sbrowser = dbus.Interface(bus.get_object(avahi.DBUS_NAME,
         server.ServiceBrowserNew(avahi.IF_UNSPEC,
             avahi.PROTO_UNSPEC, TYPE, 'local', dbus.UInt32(0))),
         avahi.DBUS_INTERFACE_SERVICE_BROWSER)
-avahiservice = AvahiService(config)
-sbrowser.connect_to_signal("ItemNew", avahiservice.service_added)
-sbrowser.connect_to_signal("ItemRemove", avahiservice.service_removed)
+    avahiservice = AvahiService(config)
+    sbrowser.connect_to_signal("ItemNew", avahiservice.service_added)
+    sbrowser.connect_to_signal("ItemRemove", avahiservice.service_removed)
 
-atexit.register(sigint)
-#signal.signal(signal.SIGINT, sigint)
-#signal.signal(signal.SIGTERM, sigint)
-#signal.siginterrupt(signal.SIGTERM, False) 
-#signal.siginterrupt(signal.SIGINT, False) 
+    atexit.register(sigint)
 
-gobject.MainLoop().run()
+    gobject.MainLoop().run()
 
-locallinker.unlink_all()
-avahiservice.unlink_all()
-sys.exit(0)
+    locallinker.unlink_all()
+    avahiservice.unlink_all()
+    sys.exit(0)
 
