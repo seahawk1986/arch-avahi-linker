@@ -6,6 +6,7 @@ import os
 import errno
 import signal
 import sys
+import syslog
 from dbus import DBusException
 from dbus.mainloop.glib import DBusGMainLoop
 
@@ -212,12 +213,12 @@ class nfsService:
             dbus2vdr = bus.get_object('de.tvdr.vdr', '/Recording') 
             dbus2vdr.Update(dbus_interface = 'de.tvdr.vdr.recording')
         except:
-            updatepath = os.path.join(vdrdir,".update")
+            updatepath = os.path.join(self.vdrdir,".update")
             try:
-                syslog("dbus unavailable, fallback to update %s" % updatepath)
+                syslog.syslog("dbus unavailable, fallback to update %s" % updatepath)
                 os.utime(updatepath, None)
             except:
-                syslog("Create %s"  % updatepath)
+                syslog.syslog("Create %s"  % updatepath)
                 open(updatepath, 'a').close()
                 os.chown(updatepath, vdr)
 
