@@ -47,7 +47,7 @@ class Config:
         self.staticmounts = {}
         if parser.has_section('localdirs'):
             for subtype, directory in parser.items('localdirs'):
-                self.localdirs[subtype] = directory 
+                self.localdirs[subtype] = directory
         if parser.has_section('staticmount'):
             for subtype, directory in parser.items('staticmount'):
                 self.staticmounts[subtype] = directory
@@ -67,7 +67,7 @@ class LocalLinker:
                 subtype = get_translation(subtype)[0]
             localdir = os.path.join(self.config.autofsdir, netdir)
             host = netdir.split('/')[0]
-            print host
+            print(host)
             self.create_link(localdir, os.path.join(config.mediadir, subtype, host))
 
     def unlink_all(self):
@@ -91,7 +91,7 @@ class LocalLinker:
 
     def unlink(self, target):
         os.unlink(target)
-            
+
 
 class AvahiService:
     def __init__(self, config):
@@ -101,15 +101,16 @@ class AvahiService:
     def print_error(self, *args):
         print 'error_handler'
         print args[0]
-    
+
     def service_added(self, interface, protocol, name, stype, domain, flags):
         #print "Found service '%s' type '%s' domain '%s' " % (name, stype, domain)
 
         if flags & avahi.LOOKUP_RESULT_LOCAL:
                 # local service, skip
                 pass
-        server.ResolveService(interface, protocol, name, stype, 
-            domain, avahi.PROTO_UNSPEC, dbus.UInt32(0), 
+        else:
+            server.ResolveService(interface, protocol, name, stype,
+            domain, avahi.PROTO_UNSPEC, dbus.UInt32(0),
             reply_handler=self.service_resolved, error_handler=self.print_error)
 
     def service_resolved(self, interface, protocol, name, type,
@@ -119,14 +120,14 @@ class AvahiService:
         share = nfsService(
                        config = config,
                        interface=interface,
-                       protocol=protocol, 
-                       name=name, 
+                       protocol=protocol,
+                       name=name,
                        type=type,
-                       domain=domain, 
-                       host=host, 
-                       aprotocol=aprotocol, 
+                       domain=domain,
+                       host=host,
+                       aprotocol=aprotocol,
                        address=address,
-                       port=port, 
+                       port=port,
                        txt=txt,
                        flags=flags
                        )
@@ -195,7 +196,7 @@ class nfsService:
                          )+self.config.nfs_suffix
 
     def create_link(self):
-        if not os.path.exists(self.target):
+        if not os.path.islink(self.target) or not os.path.exists(self.target):
             mkdir_p(os.path.dirname(self.target))
             os.symlink(self.origin, self.target)
         if self.subtype == "vdr":
@@ -210,7 +211,7 @@ class nfsService:
     def update_recdir(self):
         try:
             bus = dbus.SystemBus()
-            dbus2vdr = bus.get_object('de.tvdr.vdr', '/Recording') 
+            dbus2vdr = bus.get_object('de.tvdr.vdr', '/Recording')
             dbus2vdr.Update(dbus_interface = 'de.tvdr.vdr.recording')
         except:
             updatepath = os.path.join(self.vdrdir,".update")
@@ -239,7 +240,6 @@ def get_translation(*args):
         element = "/".join(elsub)
         answer.append(element)
     return answer
-            
 
 def sigint(): #signal, frame):
     #print "got %s" % signal
