@@ -5,6 +5,7 @@ import gettext
 import os
 import errno
 import signal
+import socket
 import sys
 import syslog
 from dbus import DBusException
@@ -51,9 +52,7 @@ class Config:
         if parser.has_section('staticmount'):
             for subtype, directory in parser.items('staticmount'):
                 self.staticmounts[subtype] = directory
-        #print self.mediadir
-        #print self.vdrdir
-        #print self.localdirs
+        self.hostname = socket.gethostname()
 
 class LocalLinker:
     def __init__(self, config):
@@ -133,9 +132,6 @@ class AvahiService:
                        flags=flags
                        )
         self.linked[share.name] = share
-        #print "active shares:"
-        #for share in  self.linked:
-        #    print share
 
     def service_removed(self, interface, protocol, name, type, domain, flags):
         if flags & avahi.LOOKUP_RESULT_LOCAL:
@@ -146,16 +142,15 @@ class AvahiService:
 
     def unlink_all(self):
         for share in self.linked:
-            #print self.linked[share].name
             self.linked[share].unlink()
 
 
 class nfsService:
     def __init__(self, **attrs):
-       self.__dict__.update(**attrs)
-       # for each attribute in service description:
-       # extract "key=value" pairs after converting dbus.ByteArray to string
-       for attribute in self.txt:
+        self.__dict__.update(**attrs)
+        # for each attribute in service description:
+        # extract "key=value" pairs after converting dbus.ByteArray to string
+        for attribute in self.txt:
             key, value = u"".join(map(chr, (c for c in attribute))).split("=")
             if key == "path":
                 self.path = value
@@ -169,9 +164,15 @@ class nfsService:
                 self.category = value
                 if self.config.use_i18n is True:
                     self.category = get_translation(self.category)[0]
-       self.origin = self.get_origin()
-       self.target = self.get_target()
-       self.create_link()
+        self.basedir = os.path.join(self.config.mediadir,self.subtype)
+        self.origin = self.get_origin()
+        self.target = self.get_target()
+        self.create_link()
+        if self.subtype == "vdr":
+            self.vdr_target = self.get_vdr_target()
+            self.create_extralink(self.vdr_target)
+            self.update_recdir()
+
 
     def __getattr__(self, attr):
         # return None if attribute is undefined
@@ -181,32 +182,50 @@ class nfsService:
         return os.path.join(
                      self.config.autofsdir,
                      (lambda host: host.split('.')[0])(self.host),
-                     (lambda path: path if not path.startswith(os.path.sep) else path[1:])(self.path)
+                     (lambda path: path if not path.startswith(
+                         os.path.sep) else path[1:])(self.path)
                      )
 
-    def get_target(self):
-        #print "subtype: %s" % self.subtype
-        if self.subtype == "vdr":
-            basedir = self.config.vdrdir
-        else:
-            basedir = os.path.join(self.config.mediadir,self.subtype)
+    def get_vdr_target(self):
         return os.path.join(
-                         basedir,
-                         (lambda category: category if category is not None else "")(self.category),
-                         (lambda host: host.split('.')[0])(self.host),
-                         )+self.config.nfs_suffix
+            self.config.vdrdir,
+            (lambda category: category if category is not None else "")(
+                self.category),
+            (lambda host: host.split('.')[0])(self.host),
+                )+self.config.nfs_suffix
+
+    def get_target(self):
+        if self.subtype == "vdr":
+            return os.path.join(
+                self.basedir,
+                (lambda category: category if category is not None else "")(
+                    self.category),
+                (lambda host: host.split('.')[0])(self.host),
+                )+"(for {0})".format(self.config.hostname)
+        else:
+            return os.path.join(
+                self.basedir,
+                (lambda category: category if category is not None else "")(
+                    self.category),
+                (lambda host: host.split('.')[0])(self.host),
+                )+self.config.nfs_suffix
 
     def create_link(self):
         if not os.path.islink(self.target) or not os.path.exists(self.target):
             mkdir_p(os.path.dirname(self.target))
             os.symlink(self.origin, self.target)
-        if self.subtype == "vdr":
-            self.update_recdir()
+
+    def create_extralink(self, target):
+        if not os.path.islink(target) or not os.path.exists(target):
+            mkdir_p(os.path.dirname(target))
+            os.symlink(self.target, target)
+            print("created additional symlink for remote VDR dir")
 
     def unlink(self):
         #print "unlinking %s" % self.target
         os.unlink(self.target)
         if self.subtype == "vdr":
+            os.unlink(self.vdr_target)
             self.update_recdir()
 
     def update_recdir(self):
@@ -217,7 +236,8 @@ class nfsService:
         except:
             updatepath = os.path.join(self.vdrdir,".update")
             try:
-                syslog.syslog("dbus unavailable, fallback to update %s" % updatepath)
+                syslog.syslog(
+                    "dbus unavailable, fallback to update %s" % updatepath)
                 os.utime(updatepath, None)
             except:
                 syslog.syslog("Create %s"  % updatepath)
