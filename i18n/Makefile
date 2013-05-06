@@ -33,3 +33,9 @@ install: i18n
 
 clean:
 	@rm -f *.mo
+ccflags-y += -Idrivers/media/dvb-core/
+ccflags-y += -Idrivers/media/dvb-frontends/
+ccflags-y += -Iinclude/linux/
+ccflags-y += -Idrivers/media/tuners/
+ccflags-y += -Idrivers/media/dvb/dvb-core/
+ccflags-y += -Idrivers/media/dvb/frontends/
