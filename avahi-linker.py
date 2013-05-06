@@ -216,7 +216,7 @@ class nfsService:
             os.symlink(self.origin, self.target)
 
     def create_extralink(self, target):
-        if not os.path.islink(target) or not os.path.exists(target):
+        if not os.path.islink(target) and not os.path.exists(target):
             mkdir_p(os.path.dirname(target))
             os.symlink(self.target, target)
             print("created additional symlink for remote VDR dir")
