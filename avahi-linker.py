@@ -211,7 +211,7 @@ class nfsService:
                 )+self.config.nfs_suffix
 
     def create_link(self):
-        if not os.path.islink(self.target) or not os.path.exists(self.target):
+        if not os.path.islink(self.target) and not os.path.exists(self.target):
             mkdir_p(os.path.dirname(self.target))
             os.symlink(self.origin, self.target)
 
