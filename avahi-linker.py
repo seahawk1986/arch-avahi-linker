@@ -1,4 +1,16 @@
 #!/usr/bin/python2
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, either version 3 of the License, or
+#    (at your option) any later version.
+#
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+#
+#    You should have received a copy of the GNU General Public License
+#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import dbus, gobject, avahi
 import atexit
 import gettext
@@ -24,19 +36,6 @@ import codecs
 # Class SVDRPConnection
 # http://sourceforge.net/p/svrdpclients/code/HEAD/tree/SVDRPclient/src/libSVDRP/TelnetWrapper.py
 # Copyright 2008 Christian Kuehnel
-#
-#    This program is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
-#
-#    This program is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 # wrapper for the telnet-connection used by the SVDRP
 # sends commands to the VDR and converts answer into string array
@@ -186,13 +185,16 @@ class AvahiService:
         print args[0]
 
     def service_added(self, interface, protocol, name, stype, domain, flags):
-        #print "Found service '%s' type '%s' domain '%s' " % (name, stype, domain)
+        #print "Found service '%s' type '%s' domain '%s' " % (name, stype,
+        #                                                     domain)
 
         if flags & avahi.LOOKUP_RESULT_LOCAL:
-                print("local service, skip service '%s' type '%s' domain '%s' " % (name, stype, domain))
+                print("local service, skip service '%s' type '%s' domain '%s' "
+                      % (name, stype, domain))
                 pass
         else:
-            print "Found service '%s' type '%s' domain '%s' " % (name, stype, domain)
+            print "Found service '%s' type '%s' domain '%s' " % (name, stype,
+                                                                 domain)
             server.ResolveService(interface, protocol, name, stype,
             domain, avahi.PROTO_UNSPEC, dbus.UInt32(0),
             reply_handler=self.service_resolved, error_handler=self.print_error)
@@ -320,7 +322,9 @@ class nfsService:
                 dbus.String(target), dbus_interface=interface)
         else:
             print "EXTRADIR: %s" % target
-            SVDRPConnection('127.0.0.1', 6419).sendCommand("AXVD %s" % target)
+            SVDRPConnection(
+                '127.0.0.1',
+                self.config.svdrp_port).sendCommand("AXVD %s" % str(target))
 
     def rm_extradir(self, target):
         if self.config.dbus2vdr is True:
@@ -329,7 +333,9 @@ class nfsService:
             rec.DeleteExtraVideoDirectory(
             dbus.String(target), dbus_interface=interface)
         else:
-            SVDRPConnection('127.0.0.1', 6419).sendCommand("DXVD %s" % target)
+            SVDRPConnection(
+                '127.0.0.1',
+                self.config.svdrp_port).sendCommand("DXVD %s" % str(target))
 
     def unlink(self):
         #print "unlinking %s" % self.target
@@ -343,19 +349,27 @@ class nfsService:
 
     def update_recdir(self):
         try:
-            bus = dbus.SystemBus()
-            dbus2vdr = bus.get_object('de.tvdr.vdr', '/Recording')
-            dbus2vdr.Update(dbus_interface = 'de.tvdr.vdr.recording')
+            if self.config.dbus2vdr is True:
+                bus = dbus.SystemBus()
+                dbus2vdr = bus.get_object('de.tvdr.vdr', '/Recording')
+                dbus2vdr.Update(dbus_interface = 'de.tvdr.vdr.recording')
+                print("Update recdir via dbus")
+            else:
+                 SVDRPConnection('127.0.0.1',
+                                 self.config.svdrp_port).sendCommand("UPDR")
+                 print("Update recdir via SVDRP")
         except:
             updatepath = os.path.join(self.config.vdrdir,".update")
             try:
                 syslog.syslog(
                     "dbus unavailable, fallback to update %s" % updatepath)
                 os.utime(updatepath, None)
+                print("set access time for .update")
             except:
                 syslog.syslog("Create %s"  % updatepath)
                 open(updatepath, 'a').close()
                 os.chown(updatepath, vdr)
+                print("create .update")
 
 def mkdir_p(path):
     try:
