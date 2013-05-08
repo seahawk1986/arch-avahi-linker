@@ -128,6 +128,7 @@ class Config:
     def __init__(self, options, config='/etc/avahi-linker/default.cfg'):
         self.vdr_running = False
         self.options = options
+        self.updateJob = None
         logging.basicConfig(
                         filename=self.options.logfile,
                         level=getattr(logging,self.options.loglevel),
@@ -369,9 +370,9 @@ class nfsService:
                     )
             else:
                 self.vdr_target = self.get_vdr_target()
+                self.create_link()
                 self.create_extralink(self.vdr_target)
                 self.update_recdir()
-                self.create_link()
         else:
             self.create_link()
 
@@ -473,7 +474,8 @@ class nfsService:
             else:
                 if os.path.islink(self.target):
                     os.unlink(self.vdr_target)
-            self.update_recdir()
+            if self.config.job is None:
+                self.config.job = gobject.timeout_add(500, self.update_recdir)
 
     def update_recdir(self):
         try:
@@ -494,10 +496,14 @@ class nfsService:
                 os.utime(updatepath, None)
                 logging.info("set access time for .update")
             except:
-                logging.info("Create %s"  % updatepath)
-                open(updatepath, 'a').close()
-                os.chown(updatepath, vdr)
-                logging.debug("created .update")
+                try:
+                    logging.info("Create %s"  % updatepath)
+                    open(updatepath, 'a').close()
+                    os.chown(updatepath, vdr)
+                    logging.debug("created .update")
+                except: return True
+        self.config.job = None
+        return False
 
 def mkdir_p(path):
     try:
