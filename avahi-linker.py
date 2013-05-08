@@ -13,6 +13,7 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import dbus, gobject, avahi
 import atexit
+import codecs
 import gettext
 import os
 import errno
@@ -327,7 +328,7 @@ class nfsService:
             print "EXTRADIR: %s" % target
             SVDRPConnection(
                 '127.0.0.1',
-                self.config.svdrp_port).sendCommand("AXVD %s" % str(target))
+                self.config.svdrp_port).sendCommand("AXVD %s" % target.encode('utf-8'))
 
     def rm_extradir(self, target):
         if self.config.dbus2vdr is True:
@@ -338,7 +339,7 @@ class nfsService:
         else:
             SVDRPConnection(
                 '127.0.0.1',
-                self.config.svdrp_port).sendCommand("DXVD %s" % str(target))
+                self.config.svdrp_port).sendCommand("DXVD %s" % target.encode('utf-8'))
 
     def unlink(self):
         #print "unlinking %s" % self.target
