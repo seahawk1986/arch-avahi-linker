@@ -246,8 +246,8 @@ class AvahiService:
     def service_resolved(self, interface, protocol, name, typ,
                  domain, host, aprotocol, address,
                  port, txt, flags):
-
-        if not name in self.linked:
+        sharename = "{share} on {host}".format(share=name,host=host)
+        if not sharename in self.linked:
             share = nfsService(
                        config = config,
                        interface=interface,
@@ -260,9 +260,10 @@ class AvahiService:
                        address=address,
                        port=port,
                        txt=txt,
-                       flags=flags
+                       flags=flags,
+                       sharename=sharename
                        )
-            self.linked[share.name] = share
+            self.linked[sharename] = share
         else:
             logging.debug(
                 "skipped share {0} on {1}: already used".format(name, host))
