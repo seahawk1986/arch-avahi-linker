@@ -87,8 +87,46 @@ class SVDRPConnection:
         self.telnet.close()
         self.connectString = None
 
+class checkDBus4VDR:
+    def __init__(self, bus, config, avahi):
+        self.config = config
+        self.avahi = avahi
+        if self.config.dbus2vdr is True:
+            self.bus = bus
+            self.bus.add_signal_receiver(
+                                        self.signal_handler,
+                                        interface_keyword='interface',
+                                        member_keyword='member'
+                                        )
+        try:
+            self.config.vdr_running = check_dbus2vdr()
+        except:
+            logging.debug("VDR not reachable")
+            self.config.vdr_running = False
+
+    def signal_handler(self, *args, **kwargs):
+        if kwargs['interface'] == 'de.tvdr.vdr.vdr':
+            if kwargs['member'] == "Stop":
+		logging.info("VDR stopped")
+		self.config.vdr_running = False
+            elif kwargs['member'] == "Start":
+                logging.info("VDR started")
+            elif kwargs['member'] == "Ready":
+                logging.info('VDR ready - reenable extradirs')
+                self.config.vdr_runnging = True
+                [ obj.add_extradir(obj.target) for sharename, obj
+                in self.avahi.linked.items() if obj.subtype == "vdr" ]
+
+    def check_dbus2vdr(self):
+        self.vdr = self.bus.get_object('de.tvdr.vdr', '/vdr')
+        status = self.vdr.Status(dbus_interface='de.tvdr.vdr.vdr')
+        if status == "Ready":
+            return True
+
+
 class Config:
     def __init__(self, options, config='/etc/avahi-linker/default.cfg'):
+        self.vdr_running = False
         self.options = options
         logging.basicConfig(
                         filename=self.options.logfile,
@@ -272,6 +310,7 @@ class AvahiService:
                 "skipped share {0} on {1}: already used".format(name, host))
 
     def service_removed(self, interface, protocol, name, typ, domain, flags):
+        print(interface, protocol, name, typ, domain, flags)
         if flags & avahi.LOOKUP_RESULT_LOCAL:
                 # local service, skip
                 pass
@@ -510,7 +549,7 @@ if __name__ == "__main__":
     avahiservice = AvahiService(config)
     sbrowser.connect_to_signal("ItemNew", avahiservice.service_added)
     sbrowser.connect_to_signal("ItemRemove", avahiservice.service_removed)
-
+    vdr_watchdog = checkDBus4VDR(bus, config, avahiservice)
     atexit.register(sigint)
 
     gobject.MainLoop().run()
