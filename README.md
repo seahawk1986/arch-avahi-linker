@@ -10,6 +10,17 @@ Enable NFS automounts for autofs: https://wiki.archlinux.org/index.php/Autofs#NF
 Install Package
 Set media directory an vdr recording directory in /etc/avahi-linker/default.cfg
 Enable and start avahi-linker.service
+```
+Usage: avahi-linker [options]
+
+Options:
+  -h, --help            show this help message and exit
+  -v LOG_LEVEL, --loglevel=LOG_LEVEL
+                        --loglevel
+                        [DEBUG|INFO|WARNING|ERROR|CRITICAL]
+  -l LOGFILE, --log=LOGFILE
+                        log file
+```
 
 Writing avahi-service files
 Add the directories to your /etc/exports
