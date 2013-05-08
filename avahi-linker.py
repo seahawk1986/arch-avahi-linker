@@ -469,8 +469,8 @@ class Options():
         self.parser.add_option("-v", "--loglevel",
                                dest="loglevel",
                                default='DEBUG',
-                               help=u"--loglevel \
-                               [DEBUG|INFO|WARNING|ERROR|CRITICAL]",
+                               help=u"""possible values for LOGLEVEL:
+                               [DEBUG|INFO|WARNING|ERROR|CRITICAL]""",
                                metavar="LOG_LEVEL")
         self.parser.add_option("-l", "--log", dest="logfile",
             default='/tmp/avahi-linker.log', help=u"log file",
