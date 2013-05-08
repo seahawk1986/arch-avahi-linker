@@ -275,8 +275,12 @@ class AvahiService:
         if flags & avahi.LOOKUP_RESULT_LOCAL:
                 # local service, skip
                 pass
-        self.linked[name].unlink()
-        del(self.linked[name])
+        else:
+            sharename = next((sharename for sharename, share in
+                              self.linked.items() if share.name == name), None)
+            logging.debug("removing %s" % sharename)
+            self.linked[sharename].unlink()
+            del(self.linked[sharename])
 
     def unlink_all(self):
         for share in self.linked:
