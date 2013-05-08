@@ -203,7 +203,8 @@ class AvahiService:
                  domain, host, aprotocol, address,
                  port, txt, flags):
 
-        share = nfsService(
+        if not name in self.linked:
+            share = nfsService(
                        config = config,
                        interface=interface,
                        protocol=protocol,
@@ -217,7 +218,9 @@ class AvahiService:
                        txt=txt,
                        flags=flags
                        )
-        self.linked[share.name] = share
+            self.linked[share.name] = share
+        else:
+            print("skipped share {0} on {1}: already used".format(name, host))
 
     def service_removed(self, interface, protocol, name, typ, domain, flags):
         if flags & avahi.LOOKUP_RESULT_LOCAL:
@@ -339,12 +342,14 @@ class nfsService:
 
     def unlink(self):
         #print "unlinking %s" % self.target
-        os.unlink(self.target)
+        if os.path.islink(self.target):
+            os.unlink(self.target)
         if self.subtype == "vdr":
             if self.config.extradirs is True:
                  self.rm_extradir(self.extradir)
             else:
-                os.unlink(self.vdr_target)
+                if os.path.islink(self.target):
+                    os.unlink(self.vdr_target)
             self.update_recdir()
 
     def update_recdir(self):
