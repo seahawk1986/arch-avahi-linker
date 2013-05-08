@@ -310,7 +310,7 @@ class AvahiService:
                 "skipped share {0} on {1}: already used".format(name, host))
 
     def service_removed(self, interface, protocol, name, typ, domain, flags):
-        print(interface, protocol, name, typ, domain, flags)
+        logging.info("service removed: %s %s %s %s %s %s" % (interface, protocol, name, typ, domain, flags))
         if flags & avahi.LOOKUP_RESULT_LOCAL:
                 # local service, skip
                 pass
@@ -318,8 +318,9 @@ class AvahiService:
             sharename = next((sharename for sharename, share in
                               self.linked.items() if share.name == name), None)
             logging.debug("removing %s" % sharename)
-            self.linked[sharename].unlink()
-            del(self.linked[sharename])
+            if sharename is not None:
+                self.linked[sharename].unlink()
+                del(self.linked[sharename])
 
     def unlink_all(self):
         for share in self.linked:
@@ -350,21 +351,29 @@ class nfsService:
         self.basedir = os.path.join(self.config.mediadir,self.subtype)
         self.origin = self.get_origin()
         self.target = self.get_target()
-        self.create_link()
         if self.subtype == "vdr":
-            self.vdr_target = self.get_vdr_target()
             if self.config.extradirs is True:
                 if self.category is not None:
-                    self.extradir = self.target.split(self.category)[0]
+                    self.extradir = os.path.join(self.target, self.category)
+                    logging.debug("extradir: %s" % self.extradir)
+                    self.target = os.path.join(self.target, self.category,
+                                               self.category)
+                    logging.debug("target: %s" % self.target)
                 else:
                     self.extradir = self.target
+                self.create_link()
+                logging.debug("extradir is %s" % self.extradir)
                 if self.add_extradir(self.extradir):
                     self.job = gobject.timeout_add(
                         500, self.add_extradir, self.extradir
                     )
             else:
+                self.vdr_target = self.get_vdr_target()
                 self.create_extralink(self.vdr_target)
                 self.update_recdir()
+                self.create_link()
+        else:
+            self.create_link()
 
 
     def __getattr__(self, attr):
@@ -430,8 +439,8 @@ class nfsService:
                         "AXVD %s" % target.encode('utf-8')
                     )
             self.count = 0
-            self.update_recdir()
             logging.info("Successfully added extradir %s" % target)
+            self.update_recdir()
             return False
         except:
             logging.debug(
@@ -441,6 +450,7 @@ class nfsService:
 
     def rm_extradir(self, target):
         try:
+            logging.debug("remove extradir %s" % target)
             if self.config.dbus2vdr is True:
                 rec = bus.get_object('de.tvdr.vdr', '/Recordings')
                 interface = 'de.tvdr.vdr.recording'
