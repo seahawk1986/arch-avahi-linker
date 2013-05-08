@@ -312,10 +312,13 @@ class nfsService:
                     self.extradir = self.target.split(self.category)[0]
                 else:
                     self.extradir = self.target
-                self.job = gobject.timeout_add(500, self.add_extradir, self.extradir)
+                if self.add_extradir(self.extradir):
+                    self.job = gobject.timeout_add(
+                        500, self.add_extradir, self.extradir
+                    )
             else:
                 self.create_extralink(self.vdr_target)
-            self.update_recdir()
+                self.update_recdir()
 
 
     def __getattr__(self, attr):
@@ -381,6 +384,7 @@ class nfsService:
                         "AXVD %s" % target.encode('utf-8')
                     )
             self.count = 0
+            self.update_recdir()
             logging.info("Successfully added extradir %s" % target)
             return False
         except:

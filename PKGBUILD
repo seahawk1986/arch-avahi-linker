@@ -15,7 +15,7 @@ source=("avahi-linker.py"
         "default.cfg"
         "avahi-linker.service"
         "i18n.tar.gz")
-md5sums=('c76d42babde1d99e4099e07658e21b05'
+md5sums=('c41fc3a87f6e8dacf323fa828e62ba55'
          '61929f8dd9282ee3ec2e1282ed75addb'
          '3c9a120902fe9eeda050c5dd313de6b9'
          '074fd81bd683bc88efc9e5ce468db902')
