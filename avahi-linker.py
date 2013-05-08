@@ -226,22 +226,25 @@ class AvahiService:
         logging.error('Avahi error_handler:\n{0}'.format(args[0]))
 
     def service_added(self, interface, protocol, name, stype, domain, flags):
-        logging.debug("Found service '%s' type '%s' domain '%s' " % (
+        logging.debug("Detected service '%s' type '%s' domain '%s' " % (
             name, stype, domain))
 
         if flags & avahi.LOOKUP_RESULT_LOCAL:
             logging.info(
-                "local service, skip service '%s' type '%s' domain '%s' "
+                "skip local service '%s' type '%s' domain '%s' "
                 % (name, stype, domain))
             pass
         else:
-            logging.info(
-                "Found service '%s' type '%s' domain '%s' " % (name, stype,
+            logging.debug(
+                "Checking service '%s' type '%s' domain '%s' " % (name, stype,
                                                                  domain)
                          )
-            server.ResolveService(interface, protocol, name, stype,
-            domain, avahi.PROTO_UNSPEC, dbus.UInt32(0),
-            reply_handler=self.service_resolved, error_handler=self.print_error)
+            server.ResolveService(
+                interface, protocol, name, stype,
+                domain, avahi.PROTO_UNSPEC, dbus.UInt32(0),
+                reply_handler=self.service_resolved,
+                error_handler=self.print_error
+            )
 
     def service_resolved(self, interface, protocol, name, typ,
                  domain, host, aprotocol, address,
