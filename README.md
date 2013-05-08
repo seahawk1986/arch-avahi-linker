@@ -16,7 +16,7 @@ Usage: avahi-linker [options]
 Options:
   -h, --help            show this help message and exit
   -v LOG_LEVEL, --loglevel=LOG_LEVEL
-                        --loglevel
+                         possible values for LOGLEVEL:
                         [DEBUG|INFO|WARNING|ERROR|CRITICAL]
   -l LOGFILE, --log=LOGFILE
                         log file
