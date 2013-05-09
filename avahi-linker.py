@@ -224,11 +224,43 @@ class LocalLinker:
         for subtype, netdir in config.staticmounts.iteritems():
             if self.config.use_i18n is True:
                 subtype = get_translation(subtype)[0]
+            logging.debug("subtype : %s" % subtype)
+            localpath = os.path.split(subtype)
             localdir = os.path.join(self.config.autofsdir, netdir)
             host = netdir.split('/')[0]
-            logging.debug("Host: {0}".format(host))
-            self.create_link(localdir, os.path.join(config.mediadir, subtype,
+            logging.debug("basedir:  %s" % localpath[0])
+            logging.debug("Host: {0} type {1}".format(host, type(host)))
+            if "vdr" in localpath:
+                logging.debug('got static vdr dir: %s' % netdir)
+                if len(localpath) > 1:
+                    category = "/".join(localpath[1:])
+                    logging.debug("category: %s type: %s" % (category, type(category)))
+                basedir = os.path.join(self.config.mediadir,subtype)
+                target =  self.get_target(subtype, host)
+                vdr_target = self.get_vdr_target(subtype, host, category)
+                self.create_link(localdir, target)
+                self.create_link(target, vdr_target)
+                update_recdir()
+            else:
+                self.create_link(localdir, os.path.join(self.config.mediadir, subtype,
                                                     host))
+
+    def check_subtype(self):
+        logging.debug("subtype : %s" % subtype)
+        localpath = os.path.split(subtype)
+        logging.debug("basedir:  %s" % localpath[0])
+        if localpath[0] == "vdr":
+            return True
+
+    def get_target(self, subtype, host):
+        return os.path.join(
+             self.config.mediadir, subtype,
+             host,
+             )+"(for static {0})".format(self.config.hostname)
+
+    def get_vdr_target(self,  subtype, host, category):
+        return os.path.join(self.config.vdrdir, category, host
+                     )+"[static]"+self.config.nfs_suffix
 
     def unlink_all(self):
         for subtype, localdir in self.config.localdirs.iteritems():
@@ -241,10 +273,20 @@ class LocalLinker:
             self.unlink(os.path.join(self.config.mediadir, subtype, "local"))
         for subtype, netdir in config.staticmounts.iteritems():
             localdir = os.path.join(self.config.autofsdir, netdir)
+            localpath = os.path.split(subtype)
             if self.config.use_i18n is True:
                 subtype = get_translation(subtype)[0]
             host = netdir.split('/')[0]
-            self.unlink(os.path.join(self.config.mediadir, subtype, host))
+            if "vdr" in localpath:
+                if len(localpath) > 1:
+                    category = "/".join(localpath[1:])
+                self.unlink(self.get_target(subtype, host))
+                self.unlink(self.get_vdr_target(subtype, host, category))
+                if self.config.job is None:
+                    self.config.job = gobject.timeout_add(
+                                                    500, update_recdir)
+            else:
+                self.unlink(os.path.join(self.config.mediadir, subtype, host))
 
     def create_link(self, origin, target):
         if not os.path.exists(target) and not os.path.islink(target):
@@ -253,13 +295,15 @@ class LocalLinker:
             os.symlink(origin, target)
 
     def unlink(self, target):
-        os.unlink(target)
+        if os.path.islink(target):
+            os.unlink(target)
 
 
 class AvahiService:
     def __init__(self, config):
         self.linked = {}
         self.config = config
+        self.update_recdir = update_recdir
 
     def print_error(self, *args):
         logging.error('Avahi error_handler:\n{0}'.format(args[0]))
@@ -333,6 +377,7 @@ class nfsService:
         self.__dict__.update(**attrs)
         # for each attribute in service description:
         # extract "key=value" pairs after converting dbus.ByteArray to string
+        self.update_recdir = update_recdir
         self.counter = 0
         self.job = None
         for attribute in self.txt:
@@ -472,12 +517,12 @@ class nfsService:
             if self.config.extradirs is True:
                  self.rm_extradir(self.extradir)
             else:
-                if os.path.islink(self.target):
+                if os.path.islink(self.vdr_target):
                     os.unlink(self.vdr_target)
             if self.config.job is None:
                 self.config.job = gobject.timeout_add(500, self.update_recdir)
 
-    def update_recdir(self):
+    '''def update_recdir(self):
         try:
             if self.config.dbus2vdr is True:
                 bus = dbus.SystemBus()
@@ -503,7 +548,35 @@ class nfsService:
                     logging.debug("created .update")
                 except: return True
         self.config.job = None
-        return False
+        return False'''
+
+def update_recdir():
+    try:
+        if self.config.dbus2vdr is True:
+            bus = dbus.SystemBus()
+            dbus2vdr = bus.get_object('de.tvdr.vdr', '/Recording')
+            dbus2vdr.Update(dbus_interface = 'de.tvdr.vdr.recording')
+            logging.info("Update recdir via dbus")
+        else:
+                SVDRPConnection('127.0.0.1',
+                                config.svdrp_port).sendCommand("UPDR")
+                logging.info("Update recdir via SVDRP")
+    except:
+        updatepath = os.path.join(config.vdrdir,".update")
+        try:
+            logging.info(
+                "dbus unavailable, fallback to update %s" % updatepath)
+            os.utime(updatepath, None)
+            logging.info("set access time for .update")
+        except:
+            try:
+                logging.info("Create %s"  % updatepath)
+                open(updatepath, 'a').close()
+                os.chown(updatepath, vdr)
+                logging.debug("created .update")
+            except: return True
+    config.job = None
+    return False
 
 def mkdir_p(path):
     try:
@@ -527,6 +600,7 @@ def sigint(): #signal, frame):
     logging.debug("got %s" % signal)
     locallinker.unlink_all()
     avahiservice.unlink_all()
+    update_recdir()
     gobject.MainLoop().quit()
     sys.exit(0)
 
