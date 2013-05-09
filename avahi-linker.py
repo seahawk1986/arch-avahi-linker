@@ -99,7 +99,7 @@ class checkDBus4VDR:
                                         member_keyword='member'
                                         )
         try:
-            self.config.vdr_running = check_dbus2vdr()
+            self.config.vdr_running = self.check_dbus2vdr()
         except:
             logging.debug("VDR not reachable")
             self.config.vdr_running = False
@@ -159,6 +159,10 @@ class Config:
             self.nfs_suffix = parser.get('options', 'nfs_suffix')
         else:
             self.nfs_suffix = ""
+        if parser.has_option('options', 'static_suffix'):
+            self.static_suffix = parser.get('options', 'static_suffix')
+        else:
+            self.static_suffix = ""
         if parser.has_option('options', 'dbus2vdr'):
             self.dbus2vdr = parser.getboolean('options', 'dbus2vdr')
         else:
@@ -262,7 +266,7 @@ class LocalLinker:
 
     def get_vdr_target(self,  subtype, host, category):
         target = os.path.join(self.config.vdrdir, category, host
-                     )+"[static]"+self.config.nfs_suffix
+                     )+self.config.static_suffix
         logging.debug("vdr target: %s" % target)
         return target
 
@@ -557,7 +561,7 @@ def update_recdir():
     try:
         if config.dbus2vdr is True:
             bus = dbus.SystemBus()
-            dbus2vdr = bus.get_object('de.tvdr.vdr', '/Recording')
+            dbus2vdr = bus.get_object('de.tvdr.vdr', '/Recordings')
             dbus2vdr.Update(dbus_interface = 'de.tvdr.vdr.recording')
             logging.info("Update recdir via dbus")
         else:
@@ -565,7 +569,7 @@ def update_recdir():
                                 config.svdrp_port).sendCommand("UPDR")
                 logging.info("Update recdir via SVDRP")
     except Exception, error:
-        print Exception, error
+        logging.exception(Exception, error)
         updatepath = os.path.join(config.vdrdir,".update")
         try:
             logging.info(
