@@ -225,16 +225,13 @@ class LocalLinker:
             if self.config.use_i18n is True:
                 subtype = get_translation(subtype)[0]
             logging.debug("subtype : %s" % subtype)
-            localpath = os.path.split(subtype)
             localdir = os.path.join(self.config.autofsdir, netdir)
             host = netdir.split('/')[0]
-            logging.debug("basedir:  %s" % localpath[0])
             logging.debug("Host: {0} type {1}".format(host, type(host)))
-            if "vdr" in localpath:
-                logging.debug('got static vdr dir: %s' % netdir)
-                if len(localpath) > 1:
-                    category = "/".join(localpath[1:])
-                    logging.debug("category: %s type: %s" % (category, type(category)))
+            if "vdr" == subtype.split(os.sep)[0]:
+                logging.debug('static vdr dir: %s' % netdir)
+                category = self.get_category(subtype)
+                logging.debug("category is '%s'" % category)
                 basedir = os.path.join(self.config.mediadir,subtype)
                 target =  self.get_target(subtype, host)
                 vdr_target = self.get_vdr_target(subtype, host, category)
@@ -242,15 +239,20 @@ class LocalLinker:
                 self.create_link(target, vdr_target)
                 update_recdir()
             else:
-                self.create_link(localdir, os.path.join(self.config.mediadir, subtype,
-                                                    host))
+                self.create_link(localdir, os.path.join(self.config.mediadir,
+                                                        subtype, host)
+                                 )
 
-    def check_subtype(self):
-        logging.debug("subtype : %s" % subtype)
-        localpath = os.path.split(subtype)
-        logging.debug("basedir:  %s" % localpath[0])
-        if localpath[0] == "vdr":
-            return True
+    def get_category(self, subtype):
+        elements = subtype.split(os.sep)
+        if len(elements) > 0:
+            category = os.sep.join(elements[1:])
+            if len(category) == 0:
+                return ""
+            else:
+                return category
+        else:
+            return ""
 
     def get_target(self, subtype, host):
         return os.path.join(
@@ -259,8 +261,10 @@ class LocalLinker:
              )+"(for static {0})".format(self.config.hostname)
 
     def get_vdr_target(self,  subtype, host, category):
-        return os.path.join(self.config.vdrdir, category, host
+        target = os.path.join(self.config.vdrdir, category, host
                      )+"[static]"+self.config.nfs_suffix
+        logging.debug("vdr target: %s" % target)
+        return target
 
     def unlink_all(self):
         for subtype, localdir in self.config.localdirs.iteritems():
@@ -273,13 +277,11 @@ class LocalLinker:
             self.unlink(os.path.join(self.config.mediadir, subtype, "local"))
         for subtype, netdir in config.staticmounts.iteritems():
             localdir = os.path.join(self.config.autofsdir, netdir)
-            localpath = os.path.split(subtype)
             if self.config.use_i18n is True:
                 subtype = get_translation(subtype)[0]
             host = netdir.split('/')[0]
-            if "vdr" in localpath:
-                if len(localpath) > 1:
-                    category = "/".join(localpath[1:])
+            if "vdr" == subtype.split(os.sep)[0]:
+                category = self.get_category(subtype)
                 self.unlink(self.get_target(subtype, host))
                 self.unlink(self.get_vdr_target(subtype, host, category))
                 if self.config.job is None:
@@ -296,6 +298,7 @@ class LocalLinker:
 
     def unlink(self, target):
         if os.path.islink(target):
+            logging.debug("unlink static link %s" % target)
             os.unlink(target)
 
 
@@ -552,7 +555,7 @@ class nfsService:
 
 def update_recdir():
     try:
-        if self.config.dbus2vdr is True:
+        if config.dbus2vdr is True:
             bus = dbus.SystemBus()
             dbus2vdr = bus.get_object('de.tvdr.vdr', '/Recording')
             dbus2vdr.Update(dbus_interface = 'de.tvdr.vdr.recording')
@@ -561,7 +564,8 @@ def update_recdir():
                 SVDRPConnection('127.0.0.1',
                                 config.svdrp_port).sendCommand("UPDR")
                 logging.info("Update recdir via SVDRP")
-    except:
+    except Exception, error:
+        print Exception, error
         updatepath = os.path.join(config.vdrdir,".update")
         try:
             logging.info(
