@@ -214,7 +214,20 @@ class Config:
             "network linked dirs:\n%s" % "\n".join(
                                             self.staticmounts)
             )
-
+    def update_recdir(self):
+        if self.updateJob is not None:
+            try:
+                logging.debug("prevent double update")
+                try:
+                    gobject.source_remove(self.updateJob)
+                except:
+                    pass
+                self.updateJob = gobject.timeout_add(250, update_recdir)
+            except:
+                logging.warn("could not inhibit vdr rec updte")
+                self.updateJob = gobject.timeout_add(250, update_recdir)
+        else:
+            self.updateJob = gobject.timeout_add(250, update_recdir)
 
 
 class LocalLinker:
@@ -241,7 +254,7 @@ class LocalLinker:
                 vdr_target = self.get_vdr_target(subtype, host, category)
                 self.create_link(localdir, target)
                 self.create_link(target, vdr_target)
-                update_recdir()
+                self.config.update_recdir()
             else:
                 self.create_link(localdir, os.path.join(self.config.mediadir,
                                                         subtype, host)
@@ -290,7 +303,7 @@ class LocalLinker:
                 self.unlink(self.get_vdr_target(subtype, host, category))
                 if self.config.job is None:
                     self.config.job = gobject.timeout_add(
-                                                    500, update_recdir)
+                                                    500, self.update_recdir)
             else:
                 self.unlink(os.path.join(self.config.mediadir, subtype, host))
 
@@ -310,7 +323,7 @@ class AvahiService:
     def __init__(self, config):
         self.linked = {}
         self.config = config
-        self.update_recdir = update_recdir
+        self.update_recdir = self.config.update_recdir
 
     def print_error(self, *args):
         logging.error('Avahi error_handler:\n{0}'.format(args[0]))
@@ -384,7 +397,7 @@ class nfsService:
         self.__dict__.update(**attrs)
         # for each attribute in service description:
         # extract "key=value" pairs after converting dbus.ByteArray to string
-        self.update_recdir = update_recdir
+        self.update_recdir = self.config.update_recdir
         self.counter = 0
         self.job = None
         for attribute in self.txt:
@@ -482,16 +495,16 @@ class nfsService:
             if self.config.dbus2vdr is True:
                 rec = bus.get_object('de.tvdr.vdr', '/Recordings')
                 interface = 'de.tvdr.vdr.recording'
-                rec.AddExtraVideoDirectory(
-                    dbus.String(target), dbus_interface=interface)
+                answer = dbus.Int32(0)
+                while int(answer) != 250:
+                    answer, message = rec.AddExtraVideoDirectory(
+                                dbus.String(target), dbus_interface=interface)
+                    logging.debug("trying to add extra dir, got %s %s",
+                                  answer, message)
+                    time.sleep(0.5)
             else:
-                logging.debug("EXTRADIR: %s" % target)
-                SVDRPConnection(
-                    '127.0.0.1',
-                    self.config.svdrp_port).sendCommand(
-                        "AXVD %s" % target.encode('utf-8')
-                    )
-            self.count = 0
+                logging.warn("dbus2vdr is required to use extra video dirs")
+                self.count = 0
             logging.info("Successfully added extradir %s" % target)
             self.update_recdir()
             return False
@@ -526,8 +539,7 @@ class nfsService:
             else:
                 if os.path.islink(self.vdr_target):
                     os.unlink(self.vdr_target)
-            if self.config.job is None:
-                self.config.job = gobject.timeout_add(500, self.update_recdir)
+            self.update_recdir()
 
     '''def update_recdir(self):
         try:
@@ -562,8 +574,9 @@ def update_recdir():
         if config.dbus2vdr is True:
             bus = dbus.SystemBus()
             dbus2vdr = bus.get_object('de.tvdr.vdr', '/Recordings')
-            dbus2vdr.Update(dbus_interface = 'de.tvdr.vdr.recording')
-            logging.info("Update recdir via dbus")
+            answer = dbus.Int32(0)
+            anwer, message = dbus2vdr.Update(dbus_interface = 'de.tvdr.vdr.recording')
+            logging.info("Update recdir via dbus: %s %s", answer, message)
         else:
                 SVDRPConnection('127.0.0.1',
                                 config.svdrp_port).sendCommand("UPDR")
@@ -584,6 +597,7 @@ def update_recdir():
                 logging.debug("created .update")
             except: return True
     config.job = None
+    config.updateJob = None
     return False
 
 def mkdir_p(path):
