@@ -375,7 +375,8 @@ class AvahiService:
                 "skipped share {0} on {1}: already used".format(name, host))
 
     def service_removed(self, interface, protocol, name, typ, domain, flags):
-        logging.info("service removed: %s %s %s %s %s %s" % (interface, protocol, name, typ, domain, flags))
+        logging.info("service removed: %s %s %s %s %s %s" % (
+                                interface, protocol, name, typ, domain, flags))
         if flags & avahi.LOOKUP_RESULT_LOCAL:
                 # local service, skip
                 pass
@@ -409,7 +410,8 @@ class nfsService:
                 if self.config.use_i18n is True:
                     original = self.subtype
                     self.subtype = get_translation(self.subtype)[0]
-                    logging.debug("translated {0} to {1}".format(original, self.subtype))
+                    logging.debug(
+                        "translated {0} to {1}".format(original, self.subtype))
             elif key == "category":
                 self.category = value
                 if self.config.use_i18n is True:
@@ -520,14 +522,15 @@ class nfsService:
             if self.config.dbus2vdr is True:
                 rec = bus.get_object('de.tvdr.vdr', '/Recordings')
                 interface = 'de.tvdr.vdr.recording'
-                rec.DeleteExtraVideoDirectory(
-                dbus.String(target), dbus_interface=interface)
-            else:
-                SVDRPConnection(
-                    '127.0.0.1',
-                    self.config.svdrp_port).sendCommand("DXVD %s" % target.encode('utf-8'))
+                answer = dbus.Int32(0)
+                while int(answer) != 250:
+                    answer, message = rec.DeleteExtraVideoDirectory(
+                                dbus.String(target), dbus_interface=interface)
+                    logging.debug("trying to remove extra dir, got %s %s",
+                                                              answer, message)
+                    time.sleep(0.5)
         except:
-            logging.debug("VDR not reachable, will not remove extradir")
+            logging.debug("VDR not reachable, could not remove extradir")
 
     def unlink(self):
         logging.debug("unlinking %s" % self.target)
@@ -575,7 +578,8 @@ def update_recdir():
             bus = dbus.SystemBus()
             dbus2vdr = bus.get_object('de.tvdr.vdr', '/Recordings')
             answer = dbus.Int32(0)
-            anwer, message = dbus2vdr.Update(dbus_interface = 'de.tvdr.vdr.recording')
+            anwer, message = dbus2vdr.Update(
+                                    dbus_interface = 'de.tvdr.vdr.recording')
             logging.info("Update recdir via dbus: %s %s", answer, message)
         else:
                 SVDRPConnection('127.0.0.1',
@@ -618,7 +622,7 @@ def get_translation(*args):
         answer.append(element)
     return answer
 
-def sigint(): #signal, frame):
+def sigint(**args): #signal, frame):
     logging.debug("got %s" % signal)
     locallinker.unlink_all()
     avahiservice.unlink_all()
@@ -663,7 +667,7 @@ if __name__ == "__main__":
     sbrowser.connect_to_signal("ItemRemove", avahiservice.service_removed)
     vdr_watchdog = checkDBus4VDR(bus, config, avahiservice)
     atexit.register(sigint)
-
+    signal.signal(signal.SIGTERM, sigint)
     gobject.MainLoop().run()
 
     locallinker.unlink_all()
