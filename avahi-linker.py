@@ -125,19 +125,13 @@ class checkDBus4VDR:
 
 
 class Config:
-    def __init__(self, options, config='/etc/avahi-linker/default.cfg'):
+    def __init__(self, options):
         self.vdr_running = False
         self.options = options
         self.updateJob = None
-        logging.basicConfig(
-                        filename=self.options.logfile,
-                        level=getattr(logging,self.options.loglevel),
-                        format='%(asctime)-15s %(levelname)-6s %(message)s'
-                        )
-        logging.info(u"Started avahi-linker")
         parser = SafeConfigParser()
         parser.optionxform = unicode
-        with codecs.open(config, 'r', encoding='utf-8') as f:
+        with codecs.open(self.options.config, 'r', encoding='utf-8') as f:
             parser.readfp(f)
         if parser.has_option('targetdirs', 'media'):
             self.mediadir = parser.get('targetdirs','media')
@@ -183,18 +177,45 @@ class Config:
         if parser.has_section('staticmount'):
             for subtype, directory in parser.items('staticmount'):
                 self.staticmounts[subtype] = directory
+        if parser.has_option('Logging', 'use_file'):
+            self.log2file = parser.getboolean('Logging', 'use_file')
+        if parser.has_option('Logging', 'logfile'):
+            self.logfile = parser.get('Logging', 'logfile')
+        if parser.has_option('Logging', 'loglevel'):
+            self.loglevel = parser.get('Logging', 'loglevel')
+
         self.hostname = socket.gethostname()
+
+        if self.log2file:
+            logging.basicConfig(
+                    filename=self.logfile,
+                    level=getattr(logging,self.loglevel),
+                    format='%(asctime)-15s %(levelname)-6s %(message)s',
+                    #StreamHandler()
+            )
+        else:
+            logging.basicConfig(
+                    level=getattr(logging,self.loglevel),
+                    format='%(asctime)-15s %(levelname)-6s %(message)s',
+                    #StreamHandler()
+            )
+        logging.info(u"Started avahi-linker")
         logging.debug("""
                       Config:
                       media directory: {mediadir}
                       VDR recordings: {vdrdir}
                       autofs directory: {autofsdir}
+                      Local directories: {localdirs}
+                      Static remote directories: {staticmounts}
                       use translations: {use_il8n}
                       Suffix for NFS mounts: {nfs_suffix}
                       use dbus2vdr: {dbus2vdr}
                       use VDR extra dirs: {extradirs}
                       SVDRP-Port: {svdrp_port}
                       Hostname: {hostname}
+                      Log to file: {log2file}
+                      Logfile: {logfile}
+                      Loglevel: {loglevel}
                       """.format(
                           mediadir=self.mediadir,
                           vdrdir=self.vdrdir,
@@ -204,7 +225,12 @@ class Config:
                           dbus2vdr=self.dbus2vdr,
                           extradirs=self.extradirs,
                           svdrp_port=self.svdrp_port,
-                          hostname=self.hostname
+                          hostname=self.hostname,
+                          loglevel=self.loglevel,
+                          logfile=self.logfile,
+                          log2file=self.log2file,
+                          staticmounts=self.staticmounts,
+                          localdirs=self.localdirs
                           )
                       )
         logging.debug(
@@ -633,15 +659,11 @@ def sigint(**args): #signal, frame):
 class Options():
     def __init__(self):
         self.parser = OptionParser()
-        self.parser.add_option("-v", "--loglevel",
-                               dest="loglevel",
-                               default='DEBUG',
-                               help=u"""possible values for LOGLEVEL:
-                               [DEBUG|INFO|WARNING|ERROR|CRITICAL]""",
-                               metavar="LOG_LEVEL")
-        self.parser.add_option("-l", "--log", dest="logfile",
-            default='/tmp/avahi-linker.log', help=u"log file",
-            metavar="LOGFILE")
+        self.parser.add_option("-c", "--config",
+                               dest="config",
+                               default='/etc/avahi-linker/default.cfg',
+                               help=u"configuration file:",
+                               metavar="CONFIG_FILE")
 
     def get_options(self):
         (options, args) = self.parser.parse_args()
