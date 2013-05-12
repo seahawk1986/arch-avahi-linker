@@ -239,13 +239,7 @@ class Config:
                           localdirs=self.localdirs
                           )
                       )
-        logging.debug(
-            "local linked dirs:\n%s" % "\n".join(self.localdirs)
-        )
-        logging.debug(
-            "network linked dirs:\n%s" % "\n".join(
-                                            self.staticmounts)
-            )
+
     def update_recdir(self):
         if self.updateJob is not None:
             try:
