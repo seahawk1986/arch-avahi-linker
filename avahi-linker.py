@@ -179,10 +179,16 @@ class Config:
                 self.staticmounts[subtype] = directory
         if parser.has_option('Logging', 'use_file'):
             self.log2file = parser.getboolean('Logging', 'use_file')
+        else:
+            self.log2file = False
         if parser.has_option('Logging', 'logfile'):
             self.logfile = parser.get('Logging', 'logfile')
+        else:
+            self.logfile = "/tmp/avahi-mounter.log"
         if parser.has_option('Logging', 'loglevel'):
             self.loglevel = parser.get('Logging', 'loglevel')
+        else:
+            self.loglevel = "DEBUG"
 
         self.hostname = socket.gethostname()
 
@@ -662,7 +668,6 @@ class Options():
         self.parser.add_option("-c", "--config",
                                dest="config",
                                default='/etc/avahi-linker/default.cfg',
-                               help=u"configuration file:",
                                metavar="CONFIG_FILE")
 
     def get_options(self):
