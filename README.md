@@ -11,15 +11,11 @@ Install Package
 Set media directory an vdr recording directory in /etc/avahi-linker/default.cfg
 Enable and start avahi-linker.service
 ```
-Usage: avahi-linker [options]
+Usage: avahi-linker.py [options]
 
 Options:
   -h, --help            show this help message and exit
-  -v LOG_LEVEL, --loglevel=LOG_LEVEL
-                         possible values for LOGLEVEL:
-                        [DEBUG|INFO|WARNING|ERROR|CRITICAL]
-  -l LOGFILE, --log=LOGFILE
-                        log file
+  -c CONFIG_FILE, --config=CONFIG_FILE
 ```
 
 Writing avahi-service files
