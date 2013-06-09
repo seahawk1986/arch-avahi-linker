@@ -279,9 +279,9 @@ class LocalLinker:
                                                     "local"))
             
         for subtype, netdir in config.mediastaticmounts.iteritems():
-            localdir, host = self.prepare("", subtype, netdir)
+            localdir, host = self.prepare(subtype, netdir)
             self.create_link(localdir, os.path.join(self.config.mediadir,
-                                                        subtype, host))
+                                                        subtype, host)+self.config.static_suffix)
         for subtype, netdir in config.vdrstaticmounts.iteritems():
             localdir, host = self.prepare(subtype, netdir)
             logging.debug('static vdr dir: %s' % netdir)
