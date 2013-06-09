@@ -18,6 +18,8 @@ Options:
   -c CONFIG_FILE, --config=CONFIG_FILE
 ```
 
+Note: depending on the network configuration it may take some time until the autofs paths are available.
+
 Writing avahi-service files
 Add the directories to your /etc/exports
 

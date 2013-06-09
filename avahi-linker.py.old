@@ -34,63 +34,58 @@ TYPE = '_nfs._tcp'
 from optparse import OptionParser
 from ConfigParser import SafeConfigParser
 
-##---------------------------------------------------------------------------##
-# From https://github.com/senufo/xbmc-vdrclient/blob/master/test_svdrp.py
-# Copyright (C) Kenneth Falck 2011.
-# edited by Alexander Grothe 2013
-# Distribution allowed under the Simplified BSD License.
-class SVDRPClient(object):
-    def __init__(self, host, port):
-        self.telnet = telnetlib.Telnet()
-        self.telnet.open(host, port)
-        self.read_response()
+# Class SVDRPConnection
+# http://sourceforge.net/p/svrdpclients/code/HEAD/tree/SVDRPclient/src/libSVDRP/TelnetWrapper.py
+# Copyright 2008 Christian Kuehnel
+#
+# wrapper for the telnet-connection used by the SVDRP
+# sends commands to the VDR and converts answer into string array
+class SVDRPConnection:
 
+    # store parameters, connect to host
+    def __init__(self,host,port):
+        self.host = host
+        self.port = port
+        self.connect()
+
+    # open connection to VDR
+    def connect(self):
+        self.telnet = telnetlib.Telnet(self.host,self.port)
+        self.connectString = self.readAnswer()[0]
+
+    # parse the answer from the VDR and return a string array
+    def readAnswer(self):
+        done = False
+        buffer = ""
+        lines = []
+        linematcher = re.compile("^\d\d\d-(.*)\n",re.M) #regex for lines
+        endmatcher = re.compile("^\d\d\d (.*)\n",re.M) #regex for last line (differs in "-")
+        while not done:
+            buffer += self.telnet.read_eager()
+            #print "Buffer:"+ buffer
+            r = linematcher.search(buffer)
+            if r:
+                #print "match line: "+ r.group(1)
+                lines.append(r.group(1))
+                l = len(r.group(0))
+                buffer = buffer[l:len(buffer)]
+            r = endmatcher.search(buffer)
+            if r:
+                #print "match end: "+ r.group(1)
+                lines.append(r.group(1))
+                done = True
+            time.sleep(0.01)
+        return lines
+
+    # send a command string to the VDR, return the answer as string array
+    def sendCommand(self,command):
+        self.telnet.write(command+"\n");
+        return self.readAnswer()
+
+    # close telnet connection VDR
     def close(self):
         self.telnet.close()
-
-    def send_command(self, line):
-        #print '>>>', line
-        self.telnet.write(line.encode("UTF-8"))
-        self.telnet.write('\n')
-
-    def read_line(self):
-        line = self.telnet.read_until('\n', 10).replace('\n', '').replace('\r', '')
-        #print '<<<', line
-        if len(line) < 4: return None
-        return int(line[0:3]), line[3] == '-', line[4:]
-
-    def read_response(self):
-        response = []
-        line = self.read_line()
-        if line: response.append(line)
-        while line and line[1]:
-            line = self.read_line()
-            if line: response.append(line)
-        return response
-##---------------------------------------------------------------------------##
-
-class SVDRPConnection(object):
-    def __init__(self, host, port):
-        self.svdrp = SVDRPClient(host, port)
-
-    def sendCommand(self, command=None, expected=250):
-        if command:
-            try:
-                #print "SVDRP-Command: %s" % command
-                self.svdrp.send_command(command)
-                success = False
-                answer = []
-                for num, flag, message in self.svdrp.read_response():
-                    #print "Answer: ", num, flag, message
-                    if num == expected: success = True
-                    answer.append((num,flag,message))
-                    #logging.debug("got {0}: {1}".format(num, message))
-                self.svdrp.close()
-                return success, answer
-            except Exception, error:
-                logging.exception(Exception, error)
-                logging.debug("could not conntect to VDR")
-                return False, []
+        self.connectString = None
 
 class checkDBus4VDR:
     def __init__(self, bus, config, avahi):
@@ -454,7 +449,12 @@ class nfsService:
         self.origin = self.get_origin()
         self.target = self.get_target()
         if self.subtype == "vdr":
-            self.wait_for_path(self.origin)
+            while True:
+                if os.path.exists(self.origin):
+                    logging.debug("autofs-path exists: %s" % (self.origin))
+                    break
+                logging.debug("autofs-path does not exist, try again in 1s")
+                time.sleep(1)
             if self.config.extradirs is True:
                 if self.category is not None:
                     self.extradir = os.path.join(self.target, self.category)
@@ -526,14 +526,6 @@ class nfsService:
             os.symlink(self.target, target)
             logging.info("created additional symlink for remote VDR dir")
 
-    def wait_for_path(self, path):
-        while True:
-            if os.path.exists(self.origin):
-                logging.debug("autofs-path exists: %s" % (self.origin))
-                break
-            logging.debug("autofs-path does not exist, try again in 1s")
-            time.sleep(1)
-
     def add_extradir(self, target):
         try:
             self.counter  +=1
@@ -545,17 +537,10 @@ class nfsService:
                     answer, message = rec.AddExtraVideoDirectory(
                                 dbus.String(target), dbus_interface=interface)
                     logging.debug("trying to add extra dir, got %s %s",
-                                answer, message)
+                                  answer, message)
                     time.sleep(0.5)
-                self.count = 0
             else:
-                success = False
-                while not success:
-                    success, message = SVDRPConnection('127.0.0.1',
-                                    config.svdrp_port).sendCommand(u"AXVD %s" % target.decode('utf-8'))
-                    logging.debug("trying to add extra dir via SVDRP, got %s %s",
-                                success, message)                
-                    time.sleep(1)
+                logging.warn("dbus2vdr is required to use extra video dirs")
                 self.count = 0
             logging.info("Successfully added extradir %s" % target)
             self.update_recdir()
@@ -632,9 +617,9 @@ def update_recdir():
                                     dbus_interface = 'de.tvdr.vdr.recording')
             logging.info("Update recdir via dbus: %s %s", answer, message)
         else:
-                success, message = SVDRPConnection('127.0.0.1',
+                SVDRPConnection('127.0.0.1',
                                 config.svdrp_port).sendCommand("UPDR")
-                logging.info("Update recdir via SVDRP: %s %s", success, message)
+                logging.info("Update recdir via SVDRP")
     except Exception, error:
         logging.exception(Exception, error)
         updatepath = os.path.join(config.vdrdir,".update")
