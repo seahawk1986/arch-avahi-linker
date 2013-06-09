@@ -27,8 +27,7 @@ import telnetlib
 from dbus import DBusException
 from dbus.mainloop.glib import DBusGMainLoop
 
-# Looks for nfs shares
-
+# Look for nfs shares
 TYPE = '_nfs._tcp'
 
 from optparse import OptionParser
@@ -178,13 +177,17 @@ class Config:
         else:
             self.svdrp_port = 6419
         self.localdirs = {}
-        self.staticmounts = {}
+        self.mediastaticmounts = {}
         if parser.has_section('localdirs'):
             for subtype, directory in parser.items('localdirs'):
                 self.localdirs[subtype] = directory
-        if parser.has_section('staticmount'):
-            for subtype, directory in parser.items('staticmount'):
-                self.staticmounts[subtype] = directory
+        if parser.has_section('media_static_mount'):
+            for subtype, directory in parser.items('media_static_mount'):
+                self.mediastaticmounts[subtype] = directory
+        self.vdrstaticmounts = {}
+        if parser.has_section("vdr_static_mount"):
+            for subtype, directory in parser.items('vdr_static_mount'):
+                self.vdrstaticmounts[subtype] = directory
         if parser.has_option('Logging', 'use_file'):
             self.log2file = parser.getboolean('Logging', 'use_file')
         else:
@@ -220,7 +223,8 @@ class Config:
                       VDR recordings: {vdrdir}
                       autofs directory: {autofsdir}
                       Local directories: {localdirs}
-                      Static remote directories: {staticmounts}
+                      VDR Static remote directories: {vdrstaticmounts}
+                      Media Static remote directories: {mediastaticmounts}
                       use translations: {use_il8n}
                       Suffix for NFS mounts: {nfs_suffix}
                       use dbus2vdr: {dbus2vdr}
@@ -243,7 +247,8 @@ class Config:
                           loglevel=self.loglevel,
                           logfile=self.logfile,
                           log2file=self.log2file,
-                          staticmounts=self.staticmounts,
+                          vdrstaticmounts=self.vdrstaticmounts,
+                          mediastaticmounts=self.mediastaticmounts,
                           localdirs=self.localdirs
                           )
                       )
@@ -272,38 +277,30 @@ class LocalLinker:
                 subtype = get_translation(subtype)[0]
             self.create_link(localdir, os.path.join(config.mediadir, subtype,
                                                     "local"))
-        for subtype, netdir in config.staticmounts.iteritems():
-            if self.config.use_i18n is True:
-                subtype = get_translation(subtype)[0]
-            logging.debug("subtype : %s" % subtype)
-            localdir = os.path.join(self.config.autofsdir, netdir)
-            host = netdir.split('/')[0]
-            logging.debug("Host: {0} type {1}".format(host, type(host)))
-            if "vdr" == subtype.split(os.sep)[0]:
-                logging.debug('static vdr dir: %s' % netdir)
-                category = self.get_category(subtype)
-                logging.debug("category is '%s'" % category)
-                basedir = os.path.join(self.config.mediadir,subtype)
-                target =  self.get_target(subtype, host)
-                vdr_target = self.get_vdr_target(subtype, host, category)
-                self.create_link(localdir, target)
-                self.create_link(target, vdr_target)
-                self.config.update_recdir()
-            else:
-                self.create_link(localdir, os.path.join(self.config.mediadir,
-                                                        subtype, host)
-                                 )
-
-    def get_category(self, subtype):
-        elements = subtype.split(os.sep)
-        if len(elements) > 0:
-            category = os.sep.join(elements[1:])
-            if len(category) == 0:
-                return ""
-            else:
-                return category
-        else:
-            return ""
+            
+        for subtype, netdir in config.mediastaticmounts.iteritems():
+            localdir, host = self.prepare(subtype, netdir)
+            self.create_link(localdir, os.path.join(self.config.mediadir,
+                                                        subtype, host))
+        for subtype, netdir in config.vdrstaticmounts.iteritems():
+            localdir, host = self.prepare(subtype, netdir)
+            logging.debug('static vdr dir: %s' % netdir)
+            logging.debug("path is '%s'" % subtype)
+            basedir = os.path.join(self.config.mediadir,subtype)
+            target =  self.get_target(subtype, host)
+            vdr_target = self.get_vdr_target(subtype, host)
+            self.create_link(localdir, target)
+            self.create_link(target, vdr_target)
+            self.config.update_recdir()
+            
+    def prepare(self, subtype, netdir):
+        if self.config.use_i18n is True:
+            subtype = get_translation(subtype)[0]
+        logging.debug("subtype : %s" % subtype)
+        localdir = os.path.join(self.config.autofsdir, netdir)
+        host = netdir.split('/')[0]
+        logging.debug("Host: {0} type {1}".format(host, type(host)))
+        return localdir, host
 
     def get_target(self, subtype, host):
         return os.path.join(
@@ -311,8 +308,8 @@ class LocalLinker:
              host,
              )+"(for static {0})".format(self.config.hostname)
 
-    def get_vdr_target(self,  subtype, host, category):
-        target = os.path.join(self.config.vdrdir, category, host
+    def get_vdr_target(self,  subtype, host):
+        target = os.path.join(self.config.vdrdir, subtype
                      )+self.config.static_suffix
         logging.debug("vdr target: %s" % target)
         return target
@@ -326,20 +323,18 @@ class LocalLinker:
             if self.config.use_i18n is True:
                 subtype = get_translation(subtype)[0]
             self.unlink(os.path.join(self.config.mediadir, subtype, "local"))
-        for subtype, netdir in config.staticmounts.iteritems():
-            localdir = os.path.join(self.config.autofsdir, netdir)
-            if self.config.use_i18n is True:
-                subtype = get_translation(subtype)[0]
-            host = netdir.split('/')[0]
-            if "vdr" == subtype.split(os.sep)[0]:
-                category = self.get_category(subtype)
-                self.unlink(self.get_target(subtype, host))
-                self.unlink(self.get_vdr_target(subtype, host, category))
-                if self.config.job is None:
-                    self.config.job = gobject.timeout_add(
-                                                    500, self.update_recdir)
-            else:
-                self.unlink(os.path.join(self.config.mediadir, subtype, host))
+            
+        for subtype, netdir in config.mediastaticmounts.iteritems():
+            localdir , host = self.prepare(subtype, netdir)
+            self.unlink(os.path.join(self.config.mediadir, subtype, host))
+            
+        for subtype, netdir in config.vdrstaticmounts.iteritems():
+            localdir , host = self.prepare(subtype, netdir)
+            self.unlink(self.get_target(subtype, host))
+            self.unlink(self.get_vdr_target(subtype, host))
+            if self.config.job is None:
+                self.config.job = gobject.timeout_add(
+                                                500, update_recdir)
 
     def create_link(self, origin, target):
         if not os.path.exists(target) and not os.path.islink(target):
@@ -454,7 +449,7 @@ class nfsService:
         self.origin = self.get_origin()
         self.target = self.get_target()
         if self.subtype == "vdr":
-            self.wait_for_path(self.origin)
+            if not self.wait_for_path(self.origin): return
             if self.config.extradirs is True:
                 if self.category is not None:
                     self.extradir = os.path.join(self.target, self.category)
@@ -527,12 +522,17 @@ class nfsService:
             logging.info("created additional symlink for remote VDR dir")
 
     def wait_for_path(self, path):
+        timeout = 0
         while True:
             if os.path.exists(self.origin):
                 logging.debug("autofs-path exists: %s" % (self.origin))
-                break
+                return True
             logging.debug("autofs-path does not exist, try again in 1s")
             time.sleep(1)
+            timeout += 1
+            if timeout > 120: 
+                logging.debug("autofs-path was not available within 120s, giving up")
+                return False
 
     def add_extradir(self, target):
         try:
