@@ -279,12 +279,12 @@ class LocalLinker:
                                                     "local"))
             
         for subtype, netdir in config.mediastaticmounts.iteritems():
-            localdir, host = self.prepare(subtype, netdir)
+            subtype, localdir, host = self.prepare(subtype, netdir)
             self.create_link(localdir, os.path.join(
                 self.config.mediadir,
                 subtype)+self.config.static_suffix)
         for subtype, netdir in config.vdrstaticmounts.iteritems():
-            localdir, host = self.prepare(subtype, netdir)
+            subtype, localdir, host = self.prepare(subtype, netdir)
             logging.debug('static vdr dir: %s' % netdir)
             logging.debug("path is '%s'" % subtype)
             basedir = os.path.join(self.config.mediadir,subtype)
@@ -301,7 +301,7 @@ class LocalLinker:
         localdir = os.path.join(self.config.autofsdir, netdir)
         host = netdir.split('/')[0]
         logging.debug("Host: {0} type {1}".format(host, type(host)))
-        return localdir, host
+        return subtype, localdir, host
 
     def get_target(self, vdr, subtype, host):
         return os.path.join(
@@ -325,13 +325,13 @@ class LocalLinker:
             self.unlink(os.path.join(self.config.mediadir, subtype, "local"))
             
         for subtype, netdir in config.mediastaticmounts.iteritems():
-            localdir , host = self.prepare(subtype, netdir)
+            subtype, localdir , host = self.prepare(subtype, netdir)
             self.unlink(os.path.join(
                 self.config.mediadir,
                 subtype)+self.config.static_suffix)
             
         for subtype, netdir in config.vdrstaticmounts.iteritems():
-            localdir , host = self.prepare(subtype, netdir)
+            subtype, localdir , host = self.prepare(subtype, netdir)
             self.unlink(self.get_target("vdr", subtype, host))
             self.unlink(self.get_vdr_target(subtype, host))
             if self.config.job is None:
