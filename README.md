@@ -50,7 +50,7 @@ Example for a movie video dir announcement:
 <service>
        <type>_nfs._tcp</type>
        <port>2049</port>
-       <txt-record>path=/srv/video/Filme</txt-record> ## path to shared Folder
+       <txt-record>path=/srv/video/Movies</txt-record> ## path to shared Folder
        <txt-record>subtype=video</txt-record> ## subtype
        <txt-record>category=movies</txt-record> ## category
 </service>
