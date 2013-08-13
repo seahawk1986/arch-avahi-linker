@@ -46,7 +46,7 @@ Example for a movie video dir announcement:
 <?xml version="1.0" standalone='no'?>
 <!DOCTYPE service-group SYSTEM "avahi-service.dtd">
 <service-group>
-<name replace-wildcards="yes">Videos on %h</name> ## Name
+<name replace-wildcards="yes">Movies on %h</name> ## Name
 <service>
        <type>_nfs._tcp</type>
        <port>2049</port>
