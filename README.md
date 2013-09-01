@@ -5,9 +5,13 @@ common media dirs for avahi nfs-shares (using autofs) and local files
 
 Installation:
 Install and enable a local NFS server: https://wiki.archlinux.org/index.php/NFS
+
 Install and start avahi-daemon https://wiki.archlinux.org/index.php/Avahi
+
 Enable NFS automounts for autofs: https://wiki.archlinux.org/index.php/Autofs#NFS_Network_mounts
-Install Package
+
+##Install Package
+
 Set media directory an vdr recording directory in /etc/avahi-linker/default.cfg
 Enable and start avahi-linker.service
 ```
