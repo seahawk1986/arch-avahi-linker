@@ -117,7 +117,7 @@ class checkDBus4VDR:
                 logging.info("VDR started")
             elif kwargs['member'] == "Ready":
                 logging.info('VDR ready - reenable extradirs')
-                self.config.vdr_runnging = True
+                self.config.vdr_running = True
                 [ obj.add_extradir(obj.target) for sharename, obj
                 in self.avahi.linked.items() if obj.subtype == "vdr" ]
 
