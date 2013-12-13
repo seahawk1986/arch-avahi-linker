@@ -678,7 +678,8 @@ def sigint(**args): #signal, frame):
     logging.debug("got %s" % signal)
     locallinker.unlink_all()
     avahiservice.unlink_all()
-    update_recdir()
+    if config.vdr_running:
+        update_recdir()
     gobject.MainLoop().quit()
     sys.exit(0)
 
