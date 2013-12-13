@@ -571,7 +571,7 @@ class nfsService:
     def rm_extradir(self, target):
         try:
             logging.debug("remove extradir %s" % target)
-            if self.config.dbus2vdr is True:
+            if self.config.dbus2vdr is True and self.config.vdr_running:
                 rec = bus.get_object('de.tvdr.vdr', '/Recordings')
                 interface = 'de.tvdr.vdr.recording'
                 answer = dbus.Int32(0)
