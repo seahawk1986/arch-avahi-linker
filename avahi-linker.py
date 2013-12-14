@@ -11,13 +11,16 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
-import dbus, gobject, avahi
+import avahi
 import atexit
 import codecs
+import dbus
+import errno
 import gettext
+import gobject
+import ipaddr
 import logging
 import os
-import errno
 import signal
 import socket
 import sys
@@ -176,6 +179,30 @@ class Config:
             self.svdrp_port = parser.getint('options', 'svdrp_port')
         else:
             self.svdrp_port = 6419
+        if parser.has_option('options', 'ip_whitelist'):
+            ip_whitelist = parser.get('options', 'ip_whitelist').split()
+            self.ip_whitelist = []
+            for ip in ip_whitelist:
+                try:
+                    self.ip_whitelist.append(ipaddr.IPNetwork(ip))
+                except error as e:
+                    logging.error("malformed ip range/address: {0}".format(ip))
+                    logging.error(e)
+        else:
+            self.ip_whitelist = [ipaddr.IPNetwork('0.0.0.0/0')]
+        if parser.has_option('options', 'ip_blacklist'):
+            ip_blacklist = parser.get('options', 'ip_blacklist').split()
+            self.ip_blacklist = []
+            for ip in ip_blacklist:
+                try:
+                    self.ip_blacklist.append(ipaddr.IPNetwork(ip))
+                except error as e:
+                    logging.error("malformed ip range/address: {0}".format(ip))
+                    logging.error(e)
+        else:
+            self.ip_blacklist = []
+
+
         self.localdirs = {}
         self.mediastaticmounts = {}
         if parser.has_section('localdirs'):
@@ -230,6 +257,8 @@ class Config:
                       use dbus2vdr: {dbus2vdr}
                       use VDR extra dirs: {extradirs}
                       SVDRP-Port: {svdrp_port}
+                      IP whitelist: {ip_whitelist}
+                      IP blacklist: {ip_blacklist}
                       Hostname: {hostname}
                       Log to file: {log2file}
                       Logfile: {logfile}
@@ -243,6 +272,8 @@ class Config:
                           dbus2vdr=self.dbus2vdr,
                           extradirs=self.extradirs,
                           svdrp_port=self.svdrp_port,
+                          ip_whitelist=self.ip_whitelist,
+                          ip_blacklist=self.ip_blacklist,
                           hostname=self.hostname,
                           loglevel=self.loglevel,
                           logfile=self.logfile,
@@ -277,7 +308,7 @@ class LocalLinker:
                 subtype = get_translation(subtype)[0]
             self.create_link(localdir, os.path.join(config.mediadir, subtype,
                                                     "local"))
-            
+
         for subtype, netdir in config.mediastaticmounts.iteritems():
             subtype, localdir, host = self.prepare(subtype, netdir)
             self.create_link(localdir, os.path.join(
@@ -293,7 +324,7 @@ class LocalLinker:
             self.create_link(localdir, target)
             self.create_link(target, vdr_target)
             self.config.update_recdir()
-            
+
     def prepare(self, subtype, netdir):
         if self.config.use_i18n is True:
             subtype = get_translation(subtype)[0]
@@ -323,13 +354,13 @@ class LocalLinker:
             if self.config.use_i18n is True:
                 subtype = get_translation(subtype)[0]
             self.unlink(os.path.join(self.config.mediadir, subtype, "local"))
-            
+
         for subtype, netdir in config.mediastaticmounts.iteritems():
             subtype, localdir , host = self.prepare(subtype, netdir)
             self.unlink(os.path.join(
                 self.config.mediadir,
                 subtype)+self.config.static_suffix)
-            
+
         for subtype, netdir in config.vdrstaticmounts.iteritems():
             subtype, localdir , host = self.prepare(subtype, netdir)
             self.unlink(self.get_target("vdr", subtype, host))
@@ -384,26 +415,41 @@ class AvahiService:
                  domain, host, aprotocol, address,
                  port, txt, flags):
         sharename = "{share} on {host}".format(share=name,host=host)
-        if not sharename in self.linked:
-            share = nfsService(
-                       config = config,
-                       interface=interface,
-                       protocol=protocol,
-                       name=name,
-                       typ=typ,
-                       domain=domain,
-                       host=host,
-                       aprotocol=aprotocol,
-                       address=address,
-                       port=port,
-                       txt=txt,
-                       flags=flags,
-                       sharename=sharename
-                       )
-            self.linked[sharename] = share
+        ip = ipaddr.IPAddress(address)
+        if (
+            len(
+            [ip_range for ip_range in self.config.ip_whitelist if ip in ip_range]
+            ) >= 1
+        and
+            len(
+            [ip_range for ip_range in self.config.ip_blacklist if ip in ip_range]
+            ) == 0
+        ):
+            if not sharename in self.linked:
+                share = nfsService(
+                           config = config,
+                           interface=interface,
+                           protocol=protocol,
+                           name=name,
+                           typ=typ,
+                           domain=domain,
+                           host=host,
+                           aprotocol=aprotocol,
+                           address=address,
+                           port=port,
+                           txt=txt,
+                           flags=flags,
+                           sharename=sharename
+                           )
+                self.linked[sharename] = share
+            else:
+                logging.debug(
+                    "skipped share {0} on {1}: already used".format(name, host))
         else:
             logging.debug(
-                "skipped share {0} on {1}: already used".format(name, host))
+                "skipped share {0} on {1}: IP {2} is set to be ignored".format(
+                    name, host, address)
+            )
 
     def service_removed(self, interface, protocol, name, typ, domain, flags):
         logging.info("service removed: %s %s %s %s %s %s" % (
@@ -532,7 +578,7 @@ class nfsService:
             logging.debug("autofs-path does not exist, try again in 1s")
             time.sleep(1)
             timeout += 1
-            if timeout > 120: 
+            if timeout > 120:
                 logging.debug("autofs-path was not available within 120s, giving up")
                 return False
 
@@ -556,7 +602,7 @@ class nfsService:
                     success, message = SVDRPConnection('127.0.0.1',
                                     config.svdrp_port).sendCommand(u"AXVD %s" % target.decode('utf-8'))
                     logging.debug("trying to add extra dir via SVDRP, got %s %s",
-                                success, message)                
+                                success, message)
                     time.sleep(1)
                 self.count = 0
             logging.info("Successfully added extradir %s" % target)
