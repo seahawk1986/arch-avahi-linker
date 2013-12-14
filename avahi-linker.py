@@ -189,7 +189,9 @@ class Config:
                     logging.error("malformed ip range/address: {0}".format(ip))
                     logging.error(e)
         else:
-            self.ip_whitelist = [ipaddr.IPNetwork('0.0.0.0/0')]
+            self.ip_whitelist = [ipaddr.IPNetwork(u'0.0.0.0/0'),
+                                 ipaddr.IPNetwork(u'0::0/0')
+                                 ]
         if parser.has_option('options', 'ip_blacklist'):
             ip_blacklist = parser.get('options', 'ip_blacklist').split()
             self.ip_blacklist = []
