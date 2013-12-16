@@ -1,7 +1,7 @@
 [Unit]
 Description=Watch for upd messages to forward a vdr recdir update
-After=avahi-linker.service
-Requires=avahi-linker.service
+After=vdr.service
+Requires=vdr.service
 
 [Service]
 Type=simple
