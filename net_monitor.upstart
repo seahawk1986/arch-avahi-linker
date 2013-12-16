@@ -1,8 +1,8 @@
 author "Alexander Grothe <seahawk1986@gmx.de>"
 description "Avahi linker"
 
-start on started avahi-linker
-stop on stopping avahi-linker
+start on started vdr
+stop on stopping vdr
 
 respawn
 
