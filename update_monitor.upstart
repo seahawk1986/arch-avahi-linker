@@ -1,0 +1,12 @@
+author "Alexander Grothe <seahawk1986@gmx.de>"
+description "Avahi linker"
+
+start on started avahi-linker
+stop on stopping avahi-linker
+
+respawn
+
+script
+exec /usr/bin/update_monitor
+end script
+

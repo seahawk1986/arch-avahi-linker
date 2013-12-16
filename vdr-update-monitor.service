@@ -1,0 +1,13 @@
+[Unit]
+Description=Watch for changes in vdr VIDEODIR/.update and forward it via UDP
+After=avahi-linker.service
+Requires=avahi-linker.service
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/vdr-update-monitor
+KillMode=process
+KillSignal=SIGINT
+
+[Install]
+WantedBy=multi-user.target
