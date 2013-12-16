@@ -23,8 +23,8 @@ md5sums=('acbb685fa570ded01a37bd02d9c62d3b'
          '6c410ca8e5083543a67d33ae2532a050'
          'bf8ecf1afe546e5df0eb2126da6b90ef'
          '47ea58d0f592ce244cd38d06947b0814'
-         'aa13a06d68fa8bcc4ffe110903c637d5'
-         '10df348c36b7144b0bb898198134f959'
+         '021cb136fb10aee4186c5a76981be0a2'
+         '6acbb4b206fe9e346e609530c5b1af17'
          '2c8d238a47cd31439b673433f0195524'
          '074fd81bd683bc88efc9e5ce468db902')
 

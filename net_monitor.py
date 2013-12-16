@@ -12,8 +12,8 @@ class Handler(BaseRequestHandler):
             #print("from:", self.client_address)
             #print(self.request[0].decode('utf-8'))
             #print(self.client_address[0] in ipList)
-            hostname, message = self.request[0].decode('utf-8').split(':')
-            if (message == 'update' and not hostname == socket.gethostname()):
+            remote_hostname, message = self.request[0].decode('utf-8').split(':')
+            if (message == 'update' and not remote_hostname == hostname):
                 bus = dbus.SystemBus()
                 dbus2vdr = bus.get_object('de.tvdr.vdr', '/Recordings')
                 answer = dbus.Int32(0)
@@ -30,7 +30,7 @@ argparser = argparse.ArgumentParser(description='update vdr recdir on UDP messag
 argparser.add_argument('-p', '--port',  metavar='PORT', type=int,
                                               dest='port', default=5555, help='udp port (default 5555)')
 args = vars(argparser.parse_args())
-
+hostname = socket.gethostname()
 addr = ("",  args['port'])
 print("listening on %s:%s" % addr)
 server = UDPServer(addr, Handler)
