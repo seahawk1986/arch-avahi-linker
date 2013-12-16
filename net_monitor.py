@@ -1,19 +1,15 @@
 #!/usr/bin/python3
-from socketserver import UDPServer, BaseRequestHandler
-import argparse
 import dbus
-import socket
 import datetime
-
+import socket
+from socketserver import UDPServer, BaseRequestHandler
 
 class Handler(BaseRequestHandler):
         def handle(self):
-            #print("message:", self.request[0])
-            #print("from:", self.client_address)
-            #print(self.request[0].decode('utf-8'))
-            #print(self.client_address[0] in ipList)
-            hostname, message = self.request[0].decode('utf-8').split(':')
-            if (message == 'update' and not hostname == socket.gethostname()):
+            print("message:", self.request[0])
+            print("from:", self.client_address)
+            r_hostname, message = self.request[0].decode('utf-8').split(':')
+            if message == 'update' and hostname != r_hostname:
                 bus = dbus.SystemBus()
                 dbus2vdr = bus.get_object('de.tvdr.vdr', '/Recordings')
                 answer = dbus.Int32(0)
@@ -24,14 +20,10 @@ class Handler(BaseRequestHandler):
                 socket = self.request[1]
                 socket.sendto(bytes("okily dokily",'UTF-8'), self.client_address)
             else:
-                print("ignoring local ip address {0}".format(self.client_address[0]))
+                print("ignoring message from own hostname {0}".format(r_hostname))
 
-argparser = argparse.ArgumentParser(description='update vdr recdir on UDP message')
-argparser.add_argument('-p', '--port',  metavar='PORT', type=int,
-                                              dest='port', default=5555, help='udp port (default 5555)')
-args = vars(argparser.parse_args())
-
-addr = ("",  args['port'])
+addr = ("", 5555)
+hostname = socket.gethostname()
 print("listening on %s:%s" % addr)
 server = UDPServer(addr, Handler)
 server.serve_forever()
