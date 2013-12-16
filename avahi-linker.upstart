@@ -1,0 +1,24 @@
+author "Alexander Grothe <seahawk1986@gmx.de>"
+description "Avahi linker"
+
+start on started avahi-daemon
+stop on stopping avahi-daemon
+
+respawn
+kill timeout 20
+kill signal INT
+
+
+script
+
+if [ -e /etc/default/locale ]; then
+. /etc/default/locale
+fi
+
+if [ -n "$LANG" ]; then
+   export LANG
+fi
+
+exec /usr/bin/avahi-linker
+end script
+
