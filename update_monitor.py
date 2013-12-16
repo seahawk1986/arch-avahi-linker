@@ -31,7 +31,7 @@ def file_changed (monitor, file, unknown, event):
     send_message("{0}:update".format(socket.gethostname()))
     print(".update file changed at {0}".format(datetime.datetime.now()))
 
-file = Gio.file_new_for_path(args["watchi_file"])
+file = Gio.file_new_for_path(args["watch_file"])
 monitor = file.monitor_file(flags=Gio.FileMonitorFlags(0), cancellable=None)
 monitor.connect ("changed", file_changed)
 GObject.MainLoop().run()
