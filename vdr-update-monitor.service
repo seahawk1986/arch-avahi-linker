@@ -7,7 +7,6 @@ Requires=avahi-linker.service
 Type=simple
 ExecStart=/usr/bin/vdr-update-monitor
 KillMode=process
-KillSignal=SIGINT
 
 [Install]
 WantedBy=multi-user.target

@@ -22,9 +22,9 @@ source=("avahi-linker.py"
 md5sums=('acbb685fa570ded01a37bd02d9c62d3b'
          '6c410ca8e5083543a67d33ae2532a050'
          'bf8ecf1afe546e5df0eb2126da6b90ef'
-         '37325ef295af391877210b04b9d871ea'
-         '5e673f4139c7e37dfff93969a0768294'
-         'b95c6068f7bf2557272d2089cbe52957'
+         '47ea58d0f592ce244cd38d06947b0814'
+         'aa13a06d68fa8bcc4ffe110903c637d5'
+         '10df348c36b7144b0bb898198134f959'
          '2c8d238a47cd31439b673433f0195524'
          '074fd81bd683bc88efc9e5ce468db902')
 
