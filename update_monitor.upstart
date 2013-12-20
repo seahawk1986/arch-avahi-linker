@@ -7,7 +7,7 @@ stop on stopping avahi-linker or stopping vdr
 respawn
 
 UPDATEFILE="/srv/vdr/video.00/.update"
-env UDATEFILE
+env UPDATEFILE
 
 pre-start script
 if [ ! -f "$UPDATEFILE" ]; then
