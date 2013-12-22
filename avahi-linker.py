@@ -644,33 +644,6 @@ class nfsService:
                     os.unlink(self.vdr_target)
             self.update_recdir()
 
-    '''def update_recdir(self):
-        try:
-            if self.config.dbus2vdr is True:
-                bus = dbus.SystemBus()
-                dbus2vdr = bus.get_object('de.tvdr.vdr', '/Recording')
-                dbus2vdr.Update(dbus_interface = 'de.tvdr.vdr.recording')
-                logging.info("Update recdir via dbus")
-            else:
-                 SVDRPConnection('127.0.0.1',
-                                 self.config.svdrp_port).sendCommand("UPDR")
-                 logging.info("Update recdir via SVDRP")
-        except:
-            updatepath = os.path.join(self.config.vdrdir,".update")
-            try:
-                logging.info(
-                    "dbus unavailable, fallback to update %s" % updatepath)
-                os.utime(updatepath, None)
-                logging.info("set access time for .update")
-            except:
-                try:
-                    logging.info("Create %s"  % updatepath)
-                    open(updatepath, 'a').close()
-                    os.chown(updatepath, vdr)
-                    logging.debug("created .update")
-                except: return True
-        self.config.job = None
-        return False'''
 
 def update_recdir():
     try:
@@ -726,6 +699,7 @@ def sigint(**args): #signal, frame):
     logging.debug("got %s" % signal)
     locallinker.unlink_all()
     avahiservice.unlink_all()
+    logging.debug('shutting down, vdr is running: %s' % config.vdr_running)
     if config.vdr_running:
         update_recdir()
     gobject.MainLoop().quit()
