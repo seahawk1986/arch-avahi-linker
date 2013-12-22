@@ -119,10 +119,11 @@ class checkDBus4VDR:
             elif kwargs['member'] == "Start":
                 logging.info("VDR started")
             elif kwargs['member'] == "Ready":
-                logging.info('VDR ready - reenable extradirs')
                 self.config.vdr_running = True
-                [ obj.add_extradir(obj.target) for sharename, obj
-                in self.avahi.linked.items() if obj.subtype == "vdr" ]
+                if self.config.extradirs:
+                    logging.info('VDR ready - reenable extradirs')
+                    [ obj.add_extradir(obj.target) for sharename, obj
+                    in self.avahi.linked.items() if obj.subtype == "vdr" ]
 
     def check_dbus2vdr(self):
         self.vdr = self.bus.get_object('de.tvdr.vdr', '/vdr')
@@ -500,7 +501,7 @@ class nfsService:
         self.target = self.get_target()
         if self.subtype == "vdr":
             if not self.wait_for_path(self.origin): return
-            if self.config.extradirs is True:
+            if self.config.extradirs:
                 if self.category is not None:
                     self.extradir = os.path.join(self.target, self.category)
                     logging.debug("extradir: %s" % self.extradir)
@@ -637,7 +638,7 @@ class nfsService:
         if os.path.islink(self.target):
             os.unlink(self.target)
         if self.subtype == "vdr":
-            if self.config.extradirs is True:
+            if self.config.extradirs:
                  self.rm_extradir(self.extradir)
             else:
                 if os.path.islink(self.vdr_target):
