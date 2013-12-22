@@ -1,5 +1,5 @@
 [Unit]
-Description=vdr-update-monitor: Watch for changes in vdr VIDEODIR/.update and forward it via UDP
+Description=vdr-update-monitor
 After=avahi-linker.service
 Requires=avahi-linker.service
 
