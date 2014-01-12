@@ -34,7 +34,6 @@ from dbus.mainloop.glib import DBusGMainLoop
 # Look for nfs shares
 TYPE = '_nfs._tcp'
 
-from optparse import OptionParser
 from ConfigParser import SafeConfigParser
 
 ##---------------------------------------------------------------------------##
@@ -140,9 +139,9 @@ class Config:
         self.updateJob = None
         self.parser = SafeConfigParser()
         self.parser.optionxform = unicode
-        with codecs.open(self.options.config, 'r', encoding='utf-8') as f:
+        with codecs.open(self.options['config'], 'r', encoding='utf-8') as f:
             self.parser.readfp(f)
-        configdir = os.path.dirname(self.options.config)
+        configdir = os.path.dirname(self.options['config'])
         for opt_config in [os.path.join(configdir, u'staticmount.cfg'),
                            os.path.join(configdir, u'localdirs.cfg'),
                            os.path.join(configdir, u'wfe-static.cfg')]:
@@ -151,7 +150,6 @@ class Config:
                     self.parser.readfp(f)
             except Exception as e:
                 print e
-
         self.mediadir = self.get_setting('targetdirs', 'media', '/tmp')
         self.vdrdir =  self.get_setting('targetdirs', 'vdr', "/tmp")
         self.autofsdir = self.get_setting('options', 'autofsdir', "/net")
@@ -200,6 +198,7 @@ class Config:
         if self.parser.has_section("vdr_static_mount"):
             for subtype, directory in self.parser.items('vdr_static_mount'):
                 self.vdrstaticmounts[subtype] = directory
+
         self.log2file = self.get_settingb('Logging', 'use_file', False)
         self.logfile = self.get_setting('Logging', 'logfile',
                                         '/tmp/avahi-mounter.log')
@@ -691,22 +690,19 @@ def sigint(**args): #signal, frame):
 
 class Options():
     def __init__(self):
-        self.parser = OptionParser()
+        """self.parser = OptionParser()
         self.parser.add_option("-c", "--config",
                                dest="config",
                                default='/etc/avahi-linker/default.cfg',
-                               metavar="CONFIG_FILE")
-        """self.parser = argparse.ArgumentParser(description='link avahi announced nfs shares')
-        self.parser.add_argument('-c', '--config', dest="config",
+                               metavar="CONFIG_FILE")"""
+        self.argparser = argparse.ArgumentParser(description='link avahi announced nfs shares')
+        self.argparser.add_argument('-c', '--config', dest="config",
                                action='append', help='config file(s)',
                                default='/etc/avahi-linker/default.cfg',
-                               metavar="CONFIG_FILE")"""
-
-        #self.parser.read(args["config"])
+                               metavar="CONFIG_FILE")
 
     def get_options(self):
-        (options, args) = self.parser.parse_args()
-        print options, args
+        options = vars(self.argparser.parse_args())
         return options
 
 if __name__ == "__main__":
