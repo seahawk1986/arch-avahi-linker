@@ -11,6 +11,7 @@
 #
 #    You should have received a copy of the GNU General Public License
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+import argparse
 import avahi
 import atexit
 import codecs
@@ -137,51 +138,32 @@ class Config:
         self.vdr_running = False
         self.options = options
         self.updateJob = None
-        parser = SafeConfigParser()
-        parser.optionxform = unicode
+        self.parser = SafeConfigParser()
+        self.parser.optionxform = unicode
         with codecs.open(self.options.config, 'r', encoding='utf-8') as f:
-            parser.readfp(f)
+            self.parser.readfp(f)
         configdir = os.path.dirname(self.options.config)
-        parser.read([os.path.join(configdir, 'staticmount.cfg'), os.path.join(configdir, 'localdirs.cfg')])
+        for opt_config in [os.path.join(configdir, u'staticmount.cfg'),
+                           os.path.join(configdir, u'localdirs.cfg'),
+                           os.path.join(configdir, u'wfe-static.cfg')]:
+            try:
+                with codecs.open(opt_config, 'r', encoding='utf-8') as f:
+                    self.parser.readfp(f)
+            except Exception as e:
+                print e
 
-        if parser.has_option('targetdirs', 'media'):
-            self.mediadir = parser.get('targetdirs','media')
-        else:
-            self.mediadir = "/tmp"
-        if parser.has_option('targetdirs', 'vdr'):
-            self.vdrdir =  parser.get('targetdirs','vdr')
-        else:
-            self.vdrdir = "/tmp"
-        if parser.has_option('options', 'autofsdir'):
-            self.autofsdir = parser.get('options', 'autofsdir')
-        else:
-            self.autofsdir = "/net"
-        if parser.has_option('options', 'use_i18n'):
-            self.use_i18n = parser.getboolean('options', 'use_i18n')
-        else:
-            self.use_i18n = False
-        if parser.has_option('options', 'nfs_suffix'):
-            self.nfs_suffix = parser.get('options', 'nfs_suffix')
-        else:
-            self.nfs_suffix = ""
-        if parser.has_option('options', 'static_suffix'):
-            self.static_suffix = parser.get('options', 'static_suffix')
-        else:
-            self.static_suffix = ""
-        if parser.has_option('options', 'dbus2vdr'):
-            self.dbus2vdr = parser.getboolean('options', 'dbus2vdr')
-        else:
-             self.dbus2vdr = False
-        if parser.has_option('options', 'extradirs'):
-            self.extradirs = parser.getboolean('options', 'extradirs')
-        else:
-            self.extradirs = False
-        if parser.has_option('options', 'svdrp_port'):
-            self.svdrp_port = parser.getint('options', 'svdrp_port')
-        else:
-            self.svdrp_port = 6419
-        if parser.has_option('options', 'ip_whitelist'):
-            ip_whitelist = parser.get('options', 'ip_whitelist').split()
+        self.mediadir = self.get_setting('targetdirs', 'media', '/tmp')
+        self.vdrdir =  self.get_setting('targetdirs', 'vdr', "/tmp")
+        self.autofsdir = self.get_setting('options', 'autofsdir', "/net")
+        self.use_i18n = self.get_settingb('options', 'use_i18n', False)
+        self.nfs_suffix = self.get_setting('options', 'nfs_suffix', "")
+        self.static_suffix = self.get_setting('options', 'static_suffix', "")
+        self.dbus2vdr = self.get_settingb('options', 'dbus2vdr', False)
+        self.extradirs = self.get_settingb('options', 'extradirs', False)
+        self.svdrp_port = self.get_setting('options', 'svdrp_port', 6419)
+
+        if self.parser.has_option('options', 'ip_whitelist'):
+            ip_whitelist = self.parser.get('options', 'ip_whitelist').split()
             self.ip_whitelist = []
             for ip in ip_whitelist:
                 try:
@@ -193,8 +175,8 @@ class Config:
             self.ip_whitelist = [ipaddr.IPNetwork(u'0.0.0.0/0'),
                                  ipaddr.IPNetwork(u'0::0/0')
                                  ]
-        if parser.has_option('options', 'ip_blacklist'):
-            ip_blacklist = parser.get('options', 'ip_blacklist').split()
+        if self.parser.has_option('options', 'ip_blacklist'):
+            ip_blacklist = self.parser.get('options', 'ip_blacklist').split()
             self.ip_blacklist = []
             for ip in ip_blacklist:
                 try:
@@ -208,29 +190,20 @@ class Config:
 
         self.localdirs = {}
         self.mediastaticmounts = {}
-        if parser.has_section('localdirs'):
-            for subtype, directory in parser.items('localdirs'):
+        if self.parser.has_section('localdirs'):
+            for subtype, directory in self.parser.items('localdirs'):
                 self.localdirs[subtype] = directory
-        if parser.has_section('media_static_mount'):
-            for subtype, directory in parser.items('media_static_mount'):
+        if self.parser.has_section('media_static_mount'):
+            for subtype, directory in self.parser.items('media_static_mount'):
                 self.mediastaticmounts[subtype] = directory
         self.vdrstaticmounts = {}
-        if parser.has_section("vdr_static_mount"):
-            for subtype, directory in parser.items('vdr_static_mount'):
+        if self.parser.has_section("vdr_static_mount"):
+            for subtype, directory in self.parser.items('vdr_static_mount'):
                 self.vdrstaticmounts[subtype] = directory
-        if parser.has_option('Logging', 'use_file'):
-            self.log2file = parser.getboolean('Logging', 'use_file')
-        else:
-            self.log2file = False
-        if parser.has_option('Logging', 'logfile'):
-            self.logfile = parser.get('Logging', 'logfile')
-        else:
-            self.logfile = "/tmp/avahi-mounter.log"
-        if parser.has_option('Logging', 'loglevel'):
-            self.loglevel = parser.get('Logging', 'loglevel')
-        else:
-            self.loglevel = "DEBUG"
-
+        self.log2file = self.get_settingb('Logging', 'use_file', False)
+        self.logfile = self.get_setting('Logging', 'logfile',
+                                        '/tmp/avahi-mounter.log')
+        self.loglevel = self.get_setting('Logging', 'loglevel', 'DEBUG')
         self.hostname = socket.gethostname()
 
         if self.log2file:
@@ -238,13 +211,11 @@ class Config:
                     filename=self.logfile,
                     level=getattr(logging,self.loglevel),
                     format='%(asctime)-15s %(levelname)-6s %(message)s',
-                    #StreamHandler()
             )
         else:
             logging.basicConfig(
                     level=getattr(logging,self.loglevel),
                     format='%(asctime)-15s %(levelname)-6s %(message)s',
-                    #StreamHandler()
             )
         logging.info(u"Started avahi-linker")
         logging.debug("""
@@ -286,6 +257,18 @@ class Config:
                           localdirs=self.localdirs
                           )
                       )
+
+    def get_setting(self, category, setting, default=None):
+        if self.parser.has_option(category, setting):
+            return self.parser.get(category, setting)
+        else:
+            return default
+
+    def get_settingb(self, category, setting, default=False):
+        if self.parser.has_option(category, setting):
+            return self.parser.getboolean(category, setting)
+        else:
+            return default
 
     def update_recdir(self):
         if self.updateJob is not None:
@@ -713,9 +696,17 @@ class Options():
                                dest="config",
                                default='/etc/avahi-linker/default.cfg',
                                metavar="CONFIG_FILE")
+        """self.parser = argparse.ArgumentParser(description='link avahi announced nfs shares')
+        self.parser.add_argument('-c', '--config', dest="config",
+                               action='append', help='config file(s)',
+                               default='/etc/avahi-linker/default.cfg',
+                               metavar="CONFIG_FILE")"""
+
+        #self.parser.read(args["config"])
 
     def get_options(self):
         (options, args) = self.parser.parse_args()
+        print options, args
         return options
 
 if __name__ == "__main__":
