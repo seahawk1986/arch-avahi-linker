@@ -554,6 +554,10 @@ class nfsService:
         if not os.path.islink(self.target) and not os.path.exists(self.target):
             mkdir_p(os.path.dirname(self.target))
             os.symlink(self.origin, self.target)
+            logging.debug("created symlink from {origin} to {target} for {share}".format(
+                                        origin=self.origin, target=self.target,
+                                        share=self.sharename)
+                                        )
 
     def create_extralink(self, target):
         if not os.path.islink(target) and not os.path.exists(target):
