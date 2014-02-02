@@ -399,7 +399,13 @@ class AvahiService:
     def service_resolved(self, interface, protocol, name, typ,
                  domain, host, aprotocol, address,
                  port, txt, flags):
-        sharename = "{share} on {host}: {txt}".format(share=name, host=host, txt=txt)
+        attributes = []
+        for attribute in txt:
+            key, value = u"".join(map(chr, (c for c in attribute))).split("=")
+            attributes.append("{key} = {value}".format(key=key, value=value))
+        text = unicode(attributes)
+        print text
+        sharename = u"{share} on {host}: {txt}".format(share=name, host=host, txt=text)
         logging.debug("avahi-service resolved: %s" % sharename)
         ip = ipaddr.IPAddress(address)
         if (
@@ -642,8 +648,8 @@ def update_recdir():
                 success, message = SVDRPConnection('127.0.0.1',
                                 config.svdrp_port).sendCommand("UPDR")
                 logging.info("Update recdir via SVDRP: %s %s", success, message)
-    except Exception, error:
-        logging.exception(Exception, error)
+    except Exception as error:
+        logging.exception(error)
         updatepath = os.path.join(config.vdrdir,".update")
         try:
             logging.info(
