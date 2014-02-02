@@ -399,7 +399,8 @@ class AvahiService:
     def service_resolved(self, interface, protocol, name, typ,
                  domain, host, aprotocol, address,
                  port, txt, flags):
-        sharename = "{share} on {host}".format(share=name,host=host)
+        sharename = "{share} on {host}: {txt}".format(share=name, host=host, txt=txt)
+        logging.debug("avahi-service resolved: %s" % sharename)
         ip = ipaddr.IPAddress(address)
         if (
             len(
