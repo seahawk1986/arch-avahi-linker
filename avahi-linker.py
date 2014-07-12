@@ -152,7 +152,7 @@ class Config:
         self.nfs_suffix = self.get_setting('options', 'nfs_suffix', "")
         self.static_suffix = self.get_setting('options', 'static_suffix', "")
         self.dbus2vdr = self.get_settingb('options', 'dbus2vdr', False)
-        self.svdrp_port = self.get_setting('options', 'svdrp_port', 6419)
+        self.svdrp_port = int(self.get_setting('options', 'svdrp_port', 6419))
 
         if self.parser.has_option('options', 'ip_whitelist'):
             ip_whitelist = self.parser.get('options', 'ip_whitelist').split()
