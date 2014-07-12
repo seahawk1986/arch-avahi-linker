@@ -56,8 +56,8 @@ class SVDRPClient(object):
         self.telnet.write('\n')
 
     def read_line(self):
-        line = self.telnet.read_until('\n', 10).replace('\n', '').replace('\r', '')
-        #print '<<<', line
+        line = self.telnet.read_until('\n', 10).replace('\n', '').replace(
+                                                                      '\r', '')
         if len(line) < 4: return None
         return int(line[0:3]), line[3] == '-', line[4:]
 
@@ -78,15 +78,12 @@ class SVDRPConnection(object):
     def sendCommand(self, command=None, expected=250):
         if command:
             try:
-                #print "SVDRP-Command: %s" % command
                 self.svdrp.send_command(command)
                 success = False
                 answer = []
                 for num, flag, message in self.svdrp.read_response():
-                    #print "Answer: ", num, flag, message
                     if num == expected: success = True
                     answer.append((num,flag,message))
-                    #logging.debug("got {0}: {1}".format(num, message))
                 self.svdrp.close()
                 return success, answer
             except Exception, error:
@@ -104,7 +101,7 @@ class checkDBus4VDR:
                                         self.signal_handler,
                                         interface_keyword='interface',
                                         member_keyword='member'
-                                        )
+            )
         try:
             self.config.vdr_running = self.check_dbus2vdr()
         except:
@@ -120,10 +117,8 @@ class checkDBus4VDR:
                 logging.info("VDR started")
             elif kwargs['member'] == "Ready":
                 self.config.vdr_running = True
-                if self.config.extradirs:
-                    logging.info('VDR ready - reenable extradirs')
-                    [ obj.add_extradir(obj.target) for sharename, obj
-                    in self.avahi.linked.items() if obj.subtype == "vdr" ]
+                update_recdir()
+
 
     def check_dbus2vdr(self):
         self.vdr = self.bus.get_object('de.tvdr.vdr', '/vdr')
@@ -157,7 +152,6 @@ class Config:
         self.nfs_suffix = self.get_setting('options', 'nfs_suffix', "")
         self.static_suffix = self.get_setting('options', 'static_suffix', "")
         self.dbus2vdr = self.get_settingb('options', 'dbus2vdr', False)
-        self.extradirs = self.get_settingb('options', 'extradirs', False)
         self.svdrp_port = self.get_setting('options', 'svdrp_port', 6419)
 
         if self.parser.has_option('options', 'ip_whitelist'):
@@ -228,7 +222,6 @@ class Config:
                       use translations: {use_il8n}
                       Suffix for NFS mounts: {nfs_suffix}
                       use dbus2vdr: {dbus2vdr}
-                      use VDR extra dirs: {extradirs}
                       SVDRP-Port: {svdrp_port}
                       IP whitelist: {ip_whitelist}
                       IP blacklist: {ip_blacklist}
@@ -243,7 +236,6 @@ class Config:
                           use_il8n=self.use_i18n,
                           nfs_suffix=self.nfs_suffix,
                           dbus2vdr=self.dbus2vdr,
-                          extradirs=self.extradirs,
                           svdrp_port=self.svdrp_port,
                           ip_whitelist=self.ip_whitelist,
                           ip_blacklist=self.ip_blacklist,
@@ -254,8 +246,8 @@ class Config:
                           vdrstaticmounts=self.vdrstaticmounts,
                           mediastaticmounts=self.mediastaticmounts,
                           localdirs=self.localdirs
-                          )
                       )
+        )
 
     def get_setting(self, category, setting, default=None):
         if self.parser.has_option(category, setting):
@@ -296,9 +288,11 @@ class LocalLinker:
 
         for subtype, netdir in config.mediastaticmounts.iteritems():
             subtype, localdir, host = self.prepare(subtype, netdir)
-            self.create_link(localdir, os.path.join(
-                self.config.mediadir,
-                subtype)+self.config.static_suffix)
+            self.create_link(localdir, os.path.join(self.config.mediadir,
+                                                    subtype
+                                       )+self.config.static_suffix
+            )
+
         for subtype, netdir in config.vdrstaticmounts.iteritems():
             subtype, localdir, host = self.prepare(subtype, netdir)
             logging.debug('static vdr dir: %s' % netdir)
@@ -332,9 +326,9 @@ class LocalLinker:
 
     def unlink_all(self):
         for subtype, localdir in self.config.localdirs.iteritems():
-            logging.debug(
-                "unlink %s" % os.path.join(
-                                        self.config.mediadir, subtype, "local")
+            logging.debug("unlink %s" % os.path.join(self.config.mediadir,
+                                                     subtype,
+                                                     "local")
             )
             if self.config.use_i18n is True:
                 subtype = get_translation(subtype)[0]
@@ -351,13 +345,11 @@ class LocalLinker:
             self.unlink(self.get_target("vdr", subtype, host))
             self.unlink(self.get_vdr_target(subtype, host))
             if self.config.job is None:
-                self.config.job = gobject.timeout_add(
-                                                500, update_recdir)
+                self.config.job = gobject.timeout_add(500, update_recdir)
 
     def create_link(self, origin, target):
         if not os.path.exists(target) and not os.path.islink(target):
             mkdir_p(os.path.dirname(target))
-            #print target, "->", origin
             os.symlink(origin, target)
 
     def unlink(self, target):
@@ -381,14 +373,17 @@ class AvahiService:
 
         if flags & avahi.LOOKUP_RESULT_LOCAL:
             logging.info(
-                "skip local service '%s' type '%s' domain '%s' "
-                % (name, stype, domain))
+                "skip local service '%s' type '%s' domain '%s' " % (name,
+                                                                    stype,
+                                                                    domain)
+            )
             pass
         else:
             logging.debug(
-                "Checking service '%s' type '%s' domain '%s' " % (name, stype,
-                                                                 domain)
-                         )
+                "Checking service '%s' type '%s' domain '%s' " % (name,
+                                                                  stype,
+                                                                  domain)
+            )
             server.ResolveService(
                 interface, protocol, name, stype,
                 domain, avahi.PROTO_UNSPEC, dbus.UInt32(0),
@@ -405,7 +400,9 @@ class AvahiService:
             attributes.append("{key} = {value}".format(key=key, value=value))
         text = unicode(attributes)
         print text
-        sharename = u"{share} on {host}: {txt}".format(share=name, host=host, txt=text)
+        sharename = u"{share} on {host}: {txt}".format(share=name,
+                                                       host=host,
+                                                       txt=text)
         logging.debug("avahi-service resolved: %s" % sharename)
         ip = ipaddr.IPAddress(address)
         if (
@@ -419,28 +416,30 @@ class AvahiService:
         ):
             if not sharename in self.linked:
                 share = nfsService(
-                           config = config,
-                           interface=interface,
-                           protocol=protocol,
-                           name=name,
-                           typ=typ,
-                           domain=domain,
-                           host=host,
-                           aprotocol=aprotocol,
-                           address=address,
-                           port=port,
-                           txt=txt,
-                           flags=flags,
-                           sharename=sharename
-                           )
+                     config = config,
+                     interface=interface,
+                     protocol=protocol,
+                     name=name,
+                     typ=typ,
+                     domain=domain,
+                     host=host,
+                     aprotocol=aprotocol,
+                     address=address,
+                     port=port,
+                     txt=txt,
+                     flags=flags,
+                     sharename=sharename
+                )
                 self.linked[sharename] = share
             else:
                 logging.debug(
-                    "skipped share {0} on {1}: already used".format(name, host))
+                    "skipped share {0} on {1}: already used".format(name,
+                                                                    host)
+                )
         else:
             logging.debug(
                 "skipped share {0} on {1}: IP {2} is set to be ignored".format(
-                    name, host, address)
+                name, host, address)
             )
 
     def service_removed(self, interface, protocol, name, typ, domain, flags):
@@ -455,7 +454,7 @@ class AvahiService:
             logging.debug("removing %s" % sharename)
             if sharename is not None:
                 self.linked[sharename].unlink()
-                del(self.linked[sharename])
+                self.linked.pop(sharename, None)
 
     def unlink_all(self):
         for share in self.linked:
@@ -490,21 +489,6 @@ class nfsService:
         self.target = self.get_target()
         if self.subtype == "vdr":
             if not self.wait_for_path(self.origin): return
-            if self.config.extradirs:
-                if self.category is not None:
-                    self.extradir = os.path.join(self.target, self.category)
-                    logging.debug("extradir: %s" % self.extradir)
-                    self.target = os.path.join(self.target, self.category,
-                                               self.category)
-                    logging.debug("target: %s" % self.target)
-                else:
-                    self.extradir = self.target
-                self.create_link()
-                logging.debug("extradir is %s" % self.extradir)
-                if self.add_extradir(self.extradir):
-                    self.job = gobject.timeout_add(
-                        500, self.add_extradir, self.extradir
-                    )
             else:
                 self.vdr_target = self.get_vdr_target()
                 self.create_link()
@@ -554,10 +538,11 @@ class nfsService:
         if not os.path.islink(self.target) and not os.path.exists(self.target):
             mkdir_p(os.path.dirname(self.target))
             os.symlink(self.origin, self.target)
-            logging.debug("created symlink from {origin} to {target} for {share}".format(
-                                        origin=self.origin, target=self.target,
-                                        share=self.sharename)
-                                        )
+            logging.debug(
+                "created symlink from {origin} to {target} for {share}".format(
+                  origin=self.origin, target=self.target, share=self.sharename
+                )
+            )
 
     def create_extralink(self, target):
         if not os.path.islink(target) and not os.path.exists(target):
@@ -575,67 +560,17 @@ class nfsService:
             time.sleep(1)
             timeout += 1
             if timeout > 120:
-                logging.debug("autofs-path was not available within 120s, giving up")
+                logging.debug(
+                    "autofs-path was not available within 120s, giving up")
                 return False
-
-    def add_extradir(self, target):
-        try:
-            self.counter  +=1
-            if self.config.dbus2vdr is True:
-                rec = bus.get_object('de.tvdr.vdr', '/Recordings')
-                interface = 'de.tvdr.vdr.recording'
-                answer = dbus.Int32(0)
-                while int(answer) != 250:
-                    answer, message = rec.AddExtraVideoDirectory(
-                                dbus.String(target), dbus_interface=interface)
-                    logging.debug("trying to add extra dir, got %s %s",
-                                answer, message)
-                    time.sleep(0.5)
-                self.count = 0
-            else:
-                success = False
-                while not success:
-                    success, message = SVDRPConnection('127.0.0.1',
-                                    config.svdrp_port).sendCommand(u"AXVD %s" % target.decode('utf-8'))
-                    logging.debug("trying to add extra dir via SVDRP, got %s %s",
-                                success, message)
-                    time.sleep(1)
-                self.count = 0
-            logging.info("Successfully added extradir %s" % target)
-            self.update_recdir()
-            return False
-        except:
-            logging.debug(
-                "Could not connect to VDR. Tried %s times to add extradir"
-                % self.counter)
-            return True
-
-    def rm_extradir(self, target):
-        try:
-            logging.debug("remove extradir %s" % target)
-            if self.config.dbus2vdr is True and self.config.vdr_running:
-                rec = bus.get_object('de.tvdr.vdr', '/Recordings')
-                interface = 'de.tvdr.vdr.recording'
-                answer = dbus.Int32(0)
-                while int(answer) != 250:
-                    answer, message = rec.DeleteExtraVideoDirectory(
-                                dbus.String(target), dbus_interface=interface)
-                    logging.debug("trying to remove extra dir, got %s %s",
-                                                              answer, message)
-                    time.sleep(0.5)
-        except:
-            logging.debug("VDR not reachable, could not remove extradir")
 
     def unlink(self):
         logging.debug("unlinking %s" % self.target)
         if os.path.islink(self.target):
             os.unlink(self.target)
         if self.subtype == "vdr":
-            if self.config.extradirs:
-                 self.rm_extradir(self.extradir)
-            else:
-                if os.path.islink(self.vdr_target):
-                    os.unlink(self.vdr_target)
+            if os.path.islink(self.vdr_target):
+                os.unlink(self.vdr_target)
             self.update_recdir()
 
 
@@ -706,11 +641,13 @@ class Options():
                                dest="config",
                                default='/etc/avahi-linker/default.cfg',
                                metavar="CONFIG_FILE")"""
-        self.argparser = argparse.ArgumentParser(description='link avahi announced nfs shares')
+        self.argparser = argparse.ArgumentParser(
+                               description='link avahi announced nfs shares')
         self.argparser.add_argument('-c', '--config', dest="config",
-                               action='append', help='config file(s)',
-                               default='/etc/avahi-linker/default.cfg',
-                               metavar="CONFIG_FILE")
+                                    action='append', help='config file(s)',
+                                    default='/etc/avahi-linker/default.cfg',
+                                    metavar="CONFIG_FILE"
+        )
 
     def get_options(self):
         options = vars(self.argparser.parse_args())

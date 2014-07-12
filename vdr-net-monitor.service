@@ -1,7 +1,7 @@
 [Unit]
 description=vdr-net-monitor
-After=vdr.service
-Requires=vdr.service
+After=vdr.service dbus.service
+Requires=vdr.service dbus.service
 
 [Service]
 Type=simple

@@ -1,7 +1,8 @@
 [Unit]
 Description=Avahi linker
-After=avahi-daemon.service autofs.service network.target nfsd.service
-Requires=avahi-daemon.service autofs.service network.target nfsd.service
+After=avahi-daemon.service autofs.service network.target nfs-client.target dbus.service
+Requires=avahi-daemon.service autofs.service network.target nfs-client.target dbus.service
+
 
 [Service]
 Type=simple

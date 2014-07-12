@@ -1,7 +1,7 @@
 [Unit]
 Description=vdr-update-monitor
-After=avahi-linker.service
-Requires=avahi-linker.service
+After=avahi-linker.service dbus.service
+Requires=avahi-linker.service dbus.service
 
 [Service]
 Type=simple
