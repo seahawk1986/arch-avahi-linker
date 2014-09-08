@@ -1,4 +1,5 @@
 #!/usr/bin/python2
+# -*- coding:utf-8 -*-
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
 #    the Free Software Foundation, either version 3 of the License, or
@@ -83,7 +84,7 @@ class SVDRPConnection(object):
                 answer = []
                 for num, flag, message in self.svdrp.read_response():
                     if num == expected: success = True
-                    answer.append((num,flag,message))
+                    answer.append((num, flag, message))
                 self.svdrp.close()
                 return success, answer
             except Exception, error:
@@ -149,8 +150,12 @@ class Config:
         self.vdrdir =  self.get_setting('targetdirs', 'vdr', "/tmp")
         self.autofsdir = self.get_setting('options', 'autofsdir', "/net")
         self.use_i18n = self.get_settingb('options', 'use_i18n', False)
+        self.nfs_prefix = self.get_setting('options', 'nfs_prefix', "")
         self.nfs_suffix = self.get_setting('options', 'nfs_suffix', "")
+        self.use_hostname = self.get_settingb('options', 'use_hostname', False)
         self.static_suffix = self.get_setting('options', 'static_suffix', "")
+        self.fat_safe_names = self.get_settingb('options', 'fat_safe_names',
+                                                    False)
         self.dbus2vdr = self.get_settingb('options', 'dbus2vdr', False)
         self.svdrp_port = self.get_setting('options', 'svdrp_port', 6419)
 
@@ -220,6 +225,8 @@ class Config:
                       VDR Static remote directories: {vdrstaticmounts}
                       Media Static remote directories: {mediastaticmounts}
                       use translations: {use_il8n}
+                      use fat_safe_names: {fat_safe_names}
+                      Prefix for NFS mounts: {nfs_prefix}
                       Suffix for NFS mounts: {nfs_suffix}
                       use dbus2vdr: {dbus2vdr}
                       SVDRP-Port: {svdrp_port}
@@ -234,7 +241,9 @@ class Config:
                           vdrdir=self.vdrdir,
                           autofsdir=self.autofsdir,
                           use_il8n=self.use_i18n,
+                          nfs_prefix=self.nfs_prefix,
                           nfs_suffix=self.nfs_suffix,
+                          fat_safe_names=self.fat_safe_names,
                           dbus2vdr=self.dbus2vdr,
                           svdrp_port=self.svdrp_port,
                           ip_whitelist=self.ip_whitelist,
@@ -365,7 +374,7 @@ class AvahiService:
         self.update_recdir = self.config.update_recdir
 
     def print_error(self, *args):
-        logging.error('Avahi error_handler:\n{0}'.format(args[0]))
+        logging.error(u'Avahi error_handler:\n{0}'.format(args[0]))
 
     def service_added(self, interface, protocol, name, stype, domain, flags):
         logging.debug("Detected service '%s' type '%s' domain '%s' " % (
@@ -400,10 +409,11 @@ class AvahiService:
             attributes.append("{key} = {value}".format(key=key, value=value))
         text = unicode(attributes)
         print text
-        sharename = u"{share} on {host}: {txt}".format(share=name,
+        sharename = u"{share} on {host}".format(share=name, host=host)
+        _sharename = u"{share} on {host}: {txt}".format(share=name,
                                                        host=host,
                                                        txt=text)
-        logging.debug("avahi-service resolved: %s" % sharename)
+        logging.debug("avahi-service resolved: %s" % _sharename)
         ip = ipaddr.IPAddress(address)
         if (
             len(
@@ -462,6 +472,8 @@ class AvahiService:
 
 
 class nfsService:
+    unsave_chars = ("<", ">", "?", "&", '"', ":", "|", "\\", "*")
+
     def __init__(self, **attrs):
         self.__dict__.update(**attrs)
         # for each attribute in service description:
@@ -490,10 +502,32 @@ class nfsService:
         if self.subtype == "vdr":
             if not self.wait_for_path(self.origin): return
             else:
+                if self.config.use_hostname:
+                    self.safe_sharename = (lambda host: host.split('.')[0])(self.host)
+                else:
+                    self.safe_sharename = self.name
+                # sanitize name for windows clients (vdr with
+                # --dirnames=,,1
+                # or --fat option can display them properly)
+                if self.config.fat_safe_names:
+                    for char in self.unsafe_chars:
+                        self.safe_sharename = self.safe_sharename.replace(char,
+                                                    "#{0:x}".format(ord(char)))
+                # "/" is not allowed (would create a subdirectory)
+                self.safe_sharename = self.safe_sharename.replace(
+                                                    "/", "-").replace(" ", "_")
+                self.sharename = "".join(
+                                         (self.config.nfs_prefix,
+                                          self.safe_sharename,
+                                          self.config.nfs_suffix)
+                                         )
+
+
                 self.vdr_target = self.get_vdr_target()
-                self.create_link()
-                self.create_extralink(self.vdr_target)
-                self.update_recdir()
+                if self.vdr_target:
+                    self.create_link()
+                    self.create_extralink(self.vdr_target)
+                    self.update_recdir()
         else:
             self.create_link()
 
@@ -511,32 +545,44 @@ class nfsService:
                      )
 
     def get_vdr_target(self):
-        return os.path.join(
+        vdr_target = os.path.join(
             self.config.vdrdir,
             (lambda category: category if category is not None else "")(
                 self.category),
-            (lambda host: host.split('.')[0])(self.host),
-                )+self.config.nfs_suffix
+             self.sharename
+        )
+        if os.path.abspath(vdr_target).startswith(self.config.vdrdir):
+            return vdr_target
+        else:
+            logging.error("Path %s is outside of vdrdir - ignoring" % vdr_target)
+            return None
 
     def get_target(self):
         if self.subtype == "vdr":
-            return os.path.join(
+            target = os.path.join(
                 self.basedir,
                 (lambda category: category if category is not None else "")(
                     self.category),
-                (lambda host: host.split('.')[0])(self.host),
-                )+"(for {0})".format(self.config.hostname)
+                self.sharename
+            )
         else:
             return os.path.join(
                 self.basedir,
                 (lambda category: category if category is not None else "")(
                     self.category),
-                (lambda host: host.split('.')[0])(self.host),
-                )+self.config.nfs_suffix
+                self.sharename
+            )
+        if os.path.abspath(target).startswith(self.basedir):
+            return target
+        else:
+            logging.error("Path %s is outside of basedir - ignoring" % target)
+            return None
 
     def create_link(self):
-        if not os.path.islink(self.target) and not os.path.exists(self.target):
+        if self.target and not os.path.islink(self.target) and not os.path.exists(self.target):
             mkdir_p(os.path.dirname(self.target))
+            if self.subtype == "vdr":
+                self.target = "%s for %s" % (self.target, self.config.hostname)
             os.symlink(self.origin, self.target)
             logging.debug(
                 "created symlink from {origin} to {target} for {share}".format(
@@ -545,7 +591,7 @@ class nfsService:
             )
 
     def create_extralink(self, target):
-        if not os.path.islink(target) and not os.path.exists(target):
+        if target and not os.path.islink(target) and not os.path.exists(target):
             mkdir_p(os.path.dirname(target))
             os.symlink(self.target, target)
             logging.info("created additional symlink for remote VDR dir")
@@ -566,9 +612,9 @@ class nfsService:
 
     def unlink(self):
         logging.debug("unlinking %s" % self.target)
-        if os.path.islink(self.target):
+        if self.target and os.path.islink(self.target):
             os.unlink(self.target)
-        if self.subtype == "vdr":
+        if self.vdr_target and self.subtype == "vdr":
             if os.path.islink(self.vdr_target):
                 os.unlink(self.vdr_target)
             self.update_recdir()
