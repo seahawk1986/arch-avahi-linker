@@ -157,7 +157,7 @@ class Config:
         self.fat_safe_names = self.get_settingb('options', 'fat_safe_names',
                                                     False)
         self.dbus2vdr = self.get_settingb('options', 'dbus2vdr', False)
-        self.svdrp_port = self.get_setting('options', 'svdrp_port', 6419)
+        self.svdrp_port = int(self.get_setting('options', 'svdrp_port', 6419))
 
         if self.parser.has_option('options', 'ip_whitelist'):
             ip_whitelist = self.parser.get('options', 'ip_whitelist').split()
