@@ -472,7 +472,7 @@ class AvahiService:
 
 
 class nfsService:
-    unsafe_chars = ("<", ">", "?", "&", '"', ":", "|", "\\", "*", "!")
+    unsafe_chars = ("<", ">", "?", "&", '"', ":", "|", "\\", "*")
 
     def __init__(self, **attrs):
         self.__dict__.update(**attrs)
