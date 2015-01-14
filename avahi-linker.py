@@ -496,7 +496,10 @@ class nfsService:
                 self.category = value
                 if self.config.use_i18n is True:
                     self.category = get_translation(self.category)[0]
-        self.basedir = os.path.join(self.config.mediadir,self.subtype)
+        if self.subtype:
+            self.basedir = os.path.join(self.config.mediadir,self.subtype)
+        else
+            self.basedir = self.config.mediadir
         self.origin = self.get_origin()
         self.target = self.get_target()
         if self.subtype == "vdr":
