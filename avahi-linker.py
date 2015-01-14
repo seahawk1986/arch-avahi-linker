@@ -499,7 +499,8 @@ class nfsService:
         if self.subtype:
             self.basedir = os.path.join(self.config.mediadir,self.subtype)
         else:
-            logging.error("subtype for service '{0}' not set!\n{1}".format(
+            logging.error(
+                "subtype for service '{0}' not set!\nattributes: {1}".format(
                  self.name,
                  u"".join(map(chr, (c for c in attribute)))
                 )
