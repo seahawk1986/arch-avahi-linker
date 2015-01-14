@@ -498,8 +498,13 @@ class nfsService:
                     self.category = get_translation(self.category)[0]
         if self.subtype:
             self.basedir = os.path.join(self.config.mediadir,self.subtype)
-        else
-            self.basedir = self.config.mediadir
+        else:
+            logging.error("Subtype for service '{0}' not set!\n{1}".format(
+                 self.name,
+                 u"".join(map(chr, (c for c in attribute)))
+                )
+            )
+            return
         self.origin = self.get_origin()
         self.target = self.get_target()
         if self.subtype == "vdr":

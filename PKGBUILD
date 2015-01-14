@@ -19,8 +19,8 @@ source=("avahi-linker.py"
         "net_monitor.py"
         "update_monitor.py"
         "i18n.tar.gz")
-md5sums=('843054cc2d234901ad6219d9361136e7'
-         '6c410ca8e5083543a67d33ae2532a050'
+md5sums=('14b500c03c907a24918e81c4cd759fd0'
+         'b7580daf31b8f400815a2afbd018c776'
          '697e658fa2b21f308c6dad67707efc1f'
          'a3713819d2321b8bc657d4eb36f91130'
          '0ecced49050709cca8117aee27bfc1ed'
