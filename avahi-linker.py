@@ -129,6 +129,7 @@ class checkDBus4VDR:
 
 
 class Config:
+    unsafe_chars = ("<", ">", "?", "&", '"', ":", "|", "\\", "*")
     def __init__(self, options):
         self.vdr_running = False
         self.options = options
@@ -156,6 +157,13 @@ class Config:
         self.static_suffix = self.get_setting('options', 'static_suffix', "")
         self.fat_safe_names = self.get_settingb('options', 'fat_safe_names',
                                                     False)
+        if self.fat_safe_names:
+            for char in self.unsafe_chars:
+                self.nfs_prefix = self.nfs_prefix.replace(char,
+                                                    "#{0:x}".format(ord(char)))
+            self.nfs_postfix = self.nfs_postfix.replace(char,
+                                                    "#{0:x}".format(ord(char)))
+
         self.dbus2vdr = self.get_settingb('options', 'dbus2vdr', False)
         self.svdrp_port = int(self.get_setting('options', 'svdrp_port', 6419))
 
