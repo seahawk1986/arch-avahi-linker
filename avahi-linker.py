@@ -161,7 +161,7 @@ class Config:
             for char in self.unsafe_chars:
                 self.nfs_prefix = self.nfs_prefix.replace(char,
                                                     "#{0:x}".format(ord(char)))
-            self.nfs_postfix = self.nfs_postfix.replace(char,
+            self.nfs_suffix = self.nfs_suffix.replace(char,
                                                     "#{0:x}".format(ord(char)))
 
         self.dbus2vdr = self.get_settingb('options', 'dbus2vdr', False)
