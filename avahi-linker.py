@@ -600,11 +600,17 @@ class nfsService:
             mkdir_p(os.path.dirname(self.target))
             if self.subtype == "vdr":
                 self.target = "%s for %s" % (self.target, self.config.hostname)
-            os.symlink(self.origin, self.target)
-            logging.debug(
+            try:
+                os.symlink(self.origin, self.target)
+                logging.debug(
                 "created symlink from {origin} to {target} for {share}".format(
                   origin=self.origin, target=self.target, share=self.sharename
+                    )
                 )
+            except:
+                logging.debug(
+                    "symlink from {origin} to {target} for {share} already exists".format(
+                    origin=self.origin, target=self.target, share=self.sharename)
             )
 
     def create_extralink(self, target):
