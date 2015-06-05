@@ -18,26 +18,16 @@ def on_Replay(*args, **kwargs):
     name, path, status, *_ = args
     global last_file
     if status:
-        print("Playing %s from %s" % (name, path))
         if not os.lstat(path).st_dev == os.lstat(vdrdir).st_dev:
-            print("let's open a file!")
             last_file = open(os.path.join(path, "index"), 'r')
             
     else:
-        print("Stopped Replay")
-        try:
-            last_file.close()
-        except:
-            pass
-        finally:
-            last_file = None
+        cleanup()
 
 def cleanup(*args, **kwargs):
     global last_file
-    print("Cleanup time!")
     try:
         last_file.close()
-        print("closed file")
     except:
         pass
     finally:
