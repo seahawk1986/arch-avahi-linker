@@ -12,7 +12,7 @@ def on_Replay(*args, **kwargs):
     global last_file
     if status:
         print("Playing %s from %s" % (name, path))
-        if not os.lstat(path).st_dev == os.lstat('/srv/vdr/video.00').st_dev:
+        if not os.lstat(path).st_dev == os.lstat('/srv/vdr/video').st_dev:
             print("let's open a file!")
             last_file = open(os.path.join(path, "index"), 'r')
             
