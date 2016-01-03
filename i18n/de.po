@@ -1,3 +1,4 @@
+# avahi-linker locale file
 msgid ""
 msgstr ""
 "Project-Id-Version: yavdr\n"

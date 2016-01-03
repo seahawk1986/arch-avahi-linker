@@ -291,7 +291,7 @@ class LocalLinker:
         self.config = config
         for subtype, localdir in config.localdirs.iteritems():
             if self.config.use_i18n is True:
-                subtype = get_translation(subtype)[0]
+                subtype = get_translation_for_path(subtype)[0]
             self.create_link(localdir, os.path.join(config.mediadir, subtype,
                                                     "local"))
 
@@ -315,7 +315,7 @@ class LocalLinker:
 
     def prepare(self, subtype, netdir):
         if self.config.use_i18n is True:
-            subtype = get_translation(subtype)[0]
+            subtype = get_translation_for_path(subtype)[0]
         logging.debug("subtype : %s" % subtype)
         localdir = os.path.join(self.config.autofsdir, netdir)
         host = netdir.split('/')[0]
@@ -340,7 +340,7 @@ class LocalLinker:
                                                      "local")
             )
             if self.config.use_i18n is True:
-                subtype = get_translation(subtype)[0]
+                subtype = get_translation_for_path(subtype)[0]
             self.unlink(os.path.join(self.config.mediadir, subtype, "local"))
 
         for subtype, netdir in config.mediastaticmounts.iteritems():
@@ -489,13 +489,13 @@ class nfsService:
                 self.subtype = value
                 if self.config.use_i18n is True:
                     original = self.subtype
-                    self.subtype = get_translation(self.subtype)[0]
+                    self.subtype = get_translation_for_path(self.subtype)[0]
                     logging.debug(
                         "translated {0} to {1}".format(original, self.subtype))
             elif key == "category":
                 self.category = value
                 if self.config.use_i18n is True:
-                    self.category = get_translation(self.category)[0]
+                    self.category = get_translation_for_path(self.category)[0]
         if self.subtype:
             self.basedir = os.path.join(self.config.mediadir,self.subtype)
         else:
@@ -669,10 +669,11 @@ def mkdir_p(path):
             pass
         else: raise
 
-def get_translation(*args):
+def get_translation_for_path(*args):
     answer = []
     for arg in args:
         elsub = []
+        arg = arg.lstrip(os.path.sep) #  remove leading path separator
         for element in arg.split('/'):
             elsub.append(_("%s" % element))
         element = "/".join(elsub)
@@ -680,7 +681,7 @@ def get_translation(*args):
     return answer
 
 def sigint(**args): #signal, frame):
-    logging.debug("got %s" % signal)
+    logging.info("got %s" % signal)
     locallinker.unlink_all()
     avahiservice.unlink_all()
     logging.debug('shutting down, vdr is running: %s' % config.vdr_running)
@@ -729,9 +730,13 @@ if __name__ == "__main__":
     vdr_watchdog = checkDBus4VDR(bus, config, avahiservice)
     atexit.register(sigint)
     signal.signal(signal.SIGTERM, sigint)
-    gobject.MainLoop().run()
-
-    locallinker.unlink_all()
-    avahiservice.unlink_all()
-    sys.exit(0)
+    signal.signal(signal.SIGINT, sigint)
+    try:
+        mainloop = gobject.MainLoop()
+        mainloop.run()
+    except KeyboardInterrupt:
+        locallinker.unlink_all()
+        avahiservice.unlink_all()
+        print "got a keyboard interrupt"
+        sys.exit(0)
 
