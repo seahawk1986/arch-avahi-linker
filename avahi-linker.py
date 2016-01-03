@@ -300,6 +300,9 @@ class LocalLinker:
         for subtype, localdir in config.localdirs.iteritems():
             if self.config.use_i18n is True:
                 subtype = get_translation_for_path(subtype)[0]
+            else:
+                # strip leading path seperator
+                subtype = subtype.lstrip(os.path.sep)
             self.create_link(localdir, os.path.join(config.mediadir, subtype,
                                                     "local"))
 
