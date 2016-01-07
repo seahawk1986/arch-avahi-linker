@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/usr/bin/python3
 # -*- coding:utf-8 -*-
 #    This program is free software: you can redistribute it and/or modify
 #    it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@ import dbus
 import errno
 import gettext
 import gobject
-import ipaddr
+import ipaddress
 import logging
 import os
 import signal
@@ -32,7 +32,7 @@ from dbus.mainloop.glib import DBusGMainLoop
 # Look for nfs shares
 NFS_TYPE = '_nfs._tcp'
 
-from ConfigParser import SafeConfigParser
+from configparser import ConfigParser
 
 
 # --------------------------------------------------------------------------- #
@@ -137,8 +137,7 @@ class Config:
         self.vdr_running = False
         self.options = options
         self.updateJob = None
-        self.parser = SafeConfigParser()
-        self.parser.optionxform = unicode
+        self.parser = ConfigParser()
         with codecs.open(self.options['config'], 'r', encoding='utf-8') as f:
             self.parser.readfp(f)
         configdir = os.path.dirname(self.options['config'])
@@ -175,20 +174,20 @@ class Config:
             self.ip_whitelist = []
             for ip in ip_whitelist:
                 try:
-                    self.ip_whitelist.append(ipaddr.IPNetwork(ip))
+                    self.ip_whitelist.append(ipaddress.ip_network(ip))
                 except Exception as e:
                     logging.error("malformed ip range/address: {0}".format(ip))
                     logging.error(e)
         else:
-            self.ip_whitelist = [ipaddr.IPNetwork(u'0.0.0.0/0'),
-                                 ipaddr.IPNetwork(u'0::0/0')
+            self.ip_whitelist = [ipaddress.ip_network('0.0.0.0/0'),
+                                 ipaddress.ip_network('0::0/0')
                                  ]
         if self.parser.has_option('options', 'ip_blacklist'):
             ip_blacklist = self.parser.get('options', 'ip_blacklist').split()
             self.ip_blacklist = []
             for ip in ip_blacklist:
                 try:
-                    self.ip_blacklist.append(ipaddr.IPNetwork(ip))
+                    self.ip_blacklist.append(ipaddress.ip_network(ip))
                 except Exception as e:
                     logging.error("malformed ip range/address: {0}".format(ip))
                     logging.error(e)
@@ -298,7 +297,7 @@ class Config:
 class LocalLinker:
     def __init__(self, config):
         self.config = config
-        for subtype, localdir in config.localdirs.iteritems():
+        for subtype, localdir in config.localdirs.items():
             if self.config.use_i18n is True:
                 subtype = get_translation_for_path(subtype)[0]
             else:
@@ -307,14 +306,14 @@ class LocalLinker:
             self.create_link(localdir, os.path.join(config.mediadir, subtype,
                                                     "local"))
 
-        for subtype, netdir in config.mediastaticmounts.iteritems():
+        for subtype, netdir in config.mediastaticmounts.items():
             subtype, localdir, host = self.prepare(subtype, netdir)
             self.create_link(localdir,
                              os.path.join(self.config.mediadir, subtype
                                           )+self.config.static_suffix
                              )
 
-        for subtype, netdir in config.vdrstaticmounts.iteritems():
+        for subtype, netdir in config.vdrstaticmounts.items():
             subtype, localdir, host = self.prepare(subtype, netdir)
             logging.debug('static vdr dir: %s' % netdir)
             logging.debug("path is '%s'" % subtype)
@@ -346,7 +345,7 @@ class LocalLinker:
         return target
 
     def unlink_all(self):
-        for subtype, localdir in self.config.localdirs.iteritems():
+        for subtype, localdir in self.config.localdirs.items():
             logging.debug("unlink %s" % os.path.join(self.config.mediadir,
                                                      subtype,
                                                      "local")
@@ -355,13 +354,13 @@ class LocalLinker:
                 subtype = get_translation_for_path(subtype)[0]
             self.unlink(os.path.join(self.config.mediadir, subtype, "local"))
 
-        for subtype, netdir in config.mediastaticmounts.iteritems():
+        for subtype, netdir in config.mediastaticmounts.items():
             subtype, localdir, host = self.prepare(subtype, netdir)
             self.unlink(os.path.join(
                 self.config.mediadir,
                 subtype)+self.config.static_suffix)
 
-        for subtype, netdir in config.vdrstaticmounts.iteritems():
+        for subtype, netdir in config.vdrstaticmounts.items():
             subtype, localdir, host = self.prepare(subtype, netdir)
             self.unlink(self.get_target("vdr", subtype, host))
             self.unlink(self.get_vdr_target(subtype, host))
@@ -417,16 +416,16 @@ class AvahiService:
                          port, txt, flags):
         attributes = []
         for attribute in txt:
-            key, value = u"".join(map(chr, (c for c in attribute))).split("=")
+            key, value = "".join(map(chr, (c for c in attribute))).split("=")
             attributes.append("{key} = {value}".format(key=key, value=value))
-        text = unicode(attributes)
+        text = attributes
         print(text)
         sharename = u"{share} on {host}".format(share=name, host=host)
         _sharename = u"{share} on {host}: {txt}".format(share=name,
                                                         host=host,
                                                         txt=text)
         logging.debug("avahi-service resolved: %s" % _sharename)
-        ip = ipaddr.IPAddress(address)
+        ip = ipaddress.IPAddress(address)
         if (len(
             [ip_range for ip_range in self.config.ip_whitelist
              if ip in ip_range]
@@ -709,7 +708,7 @@ def get_translation_for_path(*args):
     return answer
 
 
-def sigint(**args):
+def sigint(*args, **kwargs):
     logging.info("got %s" % signal)
     locallinker.unlink_all()
     avahiservice.unlink_all()
@@ -738,7 +737,7 @@ if __name__ == "__main__":
     loop = DBusGMainLoop()
     options = Options()
     bus = dbus.SystemBus(mainloop=loop)
-    gettext.install('avahi-linker', '/usr/share/locale', unicode=1)
+    gettext.install('avahi-linker', '/usr/share/locale')
     config = Config(options.get_options())
     locallinker = LocalLinker(config)
     server = dbus.Interface(bus.get_object(avahi.DBUS_NAME, '/'),
