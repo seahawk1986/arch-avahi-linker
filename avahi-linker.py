@@ -14,7 +14,6 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import argparse
 import avahi
-import atexit
 import codecs
 import dbus
 import errno
@@ -26,18 +25,17 @@ import os
 import signal
 import socket
 import sys
-import re
 import time
 import telnetlib
-from dbus import DBusException
 from dbus.mainloop.glib import DBusGMainLoop
 
 # Look for nfs shares
-TYPE = '_nfs._tcp'
+NFS_TYPE = '_nfs._tcp'
 
 from ConfigParser import SafeConfigParser
 
-##---------------------------------------------------------------------------##
+
+# --------------------------------------------------------------------------- #
 # From https://github.com/senufo/xbmc-vdrclient/blob/master/test_svdrp.py
 # Copyright (C) Kenneth Falck 2011.
 # edited by Alexander Grothe 2013
@@ -52,25 +50,28 @@ class SVDRPClient(object):
         self.telnet.close()
 
     def send_command(self, line):
-        #print '>>>', line
         self.telnet.write(line.encode("UTF-8"))
         self.telnet.write('\n')
 
     def read_line(self):
         line = self.telnet.read_until('\n', 10).replace('\n', '').replace(
-                                                                      '\r', '')
-        if len(line) < 4: return None
+            '\r', '')
+        if len(line) < 4:
+            return None
         return int(line[0:3]), line[3] == '-', line[4:]
 
     def read_response(self):
         response = []
         line = self.read_line()
-        if line: response.append(line)
+        if line:
+            response.append(line)
         while line and line[1]:
             line = self.read_line()
-            if line: response.append(line)
+            if line:
+                response.append(line)
         return response
-##---------------------------------------------------------------------------##
+# --------------------------------------------------------------------------- #
+
 
 class SVDRPConnection(object):
     def __init__(self, host, port):
@@ -83,14 +84,16 @@ class SVDRPConnection(object):
                 success = False
                 answer = []
                 for num, flag, message in self.svdrp.read_response():
-                    if num == expected: success = True
+                    if num == expected:
+                        success = True
                     answer.append((num, flag, message))
                 self.svdrp.close()
                 return success, answer
-            except Exception, error:
+            except Exception as error:
                 logging.exception(Exception, error)
                 logging.debug("could not conntect to VDR")
                 return False, []
+
 
 class checkDBus4VDR:
     def __init__(self, bus, config, avahi):
@@ -99,9 +102,9 @@ class checkDBus4VDR:
         if self.config.dbus2vdr is True:
             self.bus = bus
             self.bus.add_signal_receiver(
-                                        self.signal_handler,
-                                        interface_keyword='interface',
-                                        member_keyword='member'
+                self.signal_handler,
+                interface_keyword='interface',
+                member_keyword='member'
             )
         try:
             self.config.vdr_running = self.check_dbus2vdr()
@@ -120,7 +123,6 @@ class checkDBus4VDR:
                 self.config.vdr_running = True
                 update_recdir()
 
-
     def check_dbus2vdr(self):
         self.vdr = self.bus.get_object('de.tvdr.vdr', '/vdr')
         status = self.vdr.Status(dbus_interface='de.tvdr.vdr.vdr')
@@ -130,6 +132,7 @@ class checkDBus4VDR:
 
 class Config:
     unsafe_chars = ("<", ">", "?", "&", '"', ":", "|", "\\", "*")
+
     def __init__(self, options):
         self.vdr_running = False
         self.options = options
@@ -146,9 +149,9 @@ class Config:
                 with codecs.open(opt_config, 'r', encoding='utf-8') as f:
                     self.parser.readfp(f)
             except Exception as e:
-                print e
+                print(e)
         self.mediadir = self.get_setting('targetdirs', 'media', '/tmp')
-        self.vdrdir =  self.get_setting('targetdirs', 'vdr', "/tmp")
+        self.vdrdir = self.get_setting('targetdirs', 'vdr', "/tmp")
         self.autofsdir = self.get_setting('options', 'autofsdir', "/net")
         self.use_i18n = self.get_settingb('options', 'use_i18n', False)
         self.nfs_prefix = self.get_setting('options', 'nfs_prefix', "")
@@ -156,13 +159,13 @@ class Config:
         self.use_hostname = self.get_settingb('options', 'use_hostname', False)
         self.static_suffix = self.get_setting('options', 'static_suffix', "")
         self.fat_safe_names = self.get_settingb('options', 'fat_safe_names',
-                                                    False)
+                                                False)
         if self.fat_safe_names:
             for char in self.unsafe_chars:
-                self.nfs_prefix = self.nfs_prefix.replace(char,
-                                                    "#{0:x}".format(ord(char)))
-            self.nfs_suffix = self.nfs_suffix.replace(char,
-                                                    "#{0:x}".format(ord(char)))
+                self.nfs_prefix = self.nfs_prefix.replace(
+                    char, "#{0:x}".format(ord(char)))
+            self.nfs_suffix = self.nfs_suffix.replace(
+                char, "#{0:x}".format(ord(char)))
 
         self.dbus2vdr = self.get_settingb('options', 'dbus2vdr', False)
         self.svdrp_port = int(self.get_setting('options', 'svdrp_port', 6419))
@@ -173,7 +176,7 @@ class Config:
             for ip in ip_whitelist:
                 try:
                     self.ip_whitelist.append(ipaddr.IPNetwork(ip))
-                except error as e:
+                except Exception as e:
                     logging.error("malformed ip range/address: {0}".format(ip))
                     logging.error(e)
         else:
@@ -186,12 +189,11 @@ class Config:
             for ip in ip_blacklist:
                 try:
                     self.ip_blacklist.append(ipaddr.IPNetwork(ip))
-                except error as e:
+                except Exception as e:
                     logging.error("malformed ip range/address: {0}".format(ip))
                     logging.error(e)
         else:
             self.ip_blacklist = []
-
 
         self.localdirs = {}
         self.mediastaticmounts = {}
@@ -214,14 +216,14 @@ class Config:
 
         if self.log2file:
             logging.basicConfig(
-                    filename=self.logfile,
-                    level=getattr(logging,self.loglevel),
-                    format='%(asctime)-15s %(levelname)-6s %(message)s',
+                filename=self.logfile,
+                level=getattr(logging, self.loglevel),
+                format='%(asctime)-15s %(levelname)-6s %(message)s',
             )
         else:
             logging.basicConfig(
-                    level=getattr(logging,self.loglevel),
-                    format='%(asctime)-15s %(levelname)-6s %(message)s',
+                level=getattr(logging, self.loglevel),
+                format='%(asctime)-15s %(levelname)-6s %(message)s',
             )
         logging.info(u"Started avahi-linker")
         logging.debug("""
@@ -244,27 +246,26 @@ class Config:
                       Log to file: {log2file}
                       Logfile: {logfile}
                       Loglevel: {loglevel}
-                      """.format(
-                          mediadir=self.mediadir,
-                          vdrdir=self.vdrdir,
-                          autofsdir=self.autofsdir,
-                          use_il8n=self.use_i18n,
-                          nfs_prefix=self.nfs_prefix,
-                          nfs_suffix=self.nfs_suffix,
-                          fat_safe_names=self.fat_safe_names,
-                          dbus2vdr=self.dbus2vdr,
-                          svdrp_port=self.svdrp_port,
-                          ip_whitelist=self.ip_whitelist,
-                          ip_blacklist=self.ip_blacklist,
-                          hostname=self.hostname,
-                          loglevel=self.loglevel,
-                          logfile=self.logfile,
-                          log2file=self.log2file,
-                          vdrstaticmounts=self.vdrstaticmounts,
-                          mediastaticmounts=self.mediastaticmounts,
-                          localdirs=self.localdirs
+                      """.format(mediadir=self.mediadir,
+                                 vdrdir=self.vdrdir,
+                                 autofsdir=self.autofsdir,
+                                 use_il8n=self.use_i18n,
+                                 nfs_prefix=self.nfs_prefix,
+                                 nfs_suffix=self.nfs_suffix,
+                                 fat_safe_names=self.fat_safe_names,
+                                 dbus2vdr=self.dbus2vdr,
+                                 svdrp_port=self.svdrp_port,
+                                 ip_whitelist=self.ip_whitelist,
+                                 ip_blacklist=self.ip_blacklist,
+                                 hostname=self.hostname,
+                                 loglevel=self.loglevel,
+                                 logfile=self.logfile,
+                                 log2file=self.log2file,
+                                 vdrstaticmounts=self.vdrstaticmounts,
+                                 mediastaticmounts=self.mediastaticmounts,
+                                 localdirs=self.localdirs
+                                 )
                       )
-        )
 
     def get_setting(self, category, setting, default=None):
         if self.parser.has_option(category, setting):
@@ -308,17 +309,17 @@ class LocalLinker:
 
         for subtype, netdir in config.mediastaticmounts.iteritems():
             subtype, localdir, host = self.prepare(subtype, netdir)
-            self.create_link(localdir, os.path.join(self.config.mediadir,
-                                                    subtype
-                                       )+self.config.static_suffix
-            )
+            self.create_link(localdir,
+                             os.path.join(self.config.mediadir, subtype
+                                          )+self.config.static_suffix
+                             )
 
         for subtype, netdir in config.vdrstaticmounts.iteritems():
             subtype, localdir, host = self.prepare(subtype, netdir)
             logging.debug('static vdr dir: %s' % netdir)
             logging.debug("path is '%s'" % subtype)
-            basedir = os.path.join(self.config.mediadir,subtype)
-            target =  self.get_target("vdr", subtype, host)
+            # basedir = os.path.join(self.config.mediadir, subtype)
+            target = self.get_target("vdr", subtype, host)
             vdr_target = self.get_vdr_target(subtype, host)
             self.create_link(localdir, target)
             self.create_link(target, vdr_target)
@@ -335,12 +336,12 @@ class LocalLinker:
 
     def get_target(self, vdr, subtype, host):
         return os.path.join(
-             self.config.mediadir, vdr, subtype, host,
-             )+"(for static {0})".format(self.config.hostname)
+            self.config.mediadir, vdr, subtype, host,
+            )+"(for static {0})".format(self.config.hostname)
 
     def get_vdr_target(self,  subtype, host):
-        target = os.path.join(self.config.vdrdir, subtype
-                     )+self.config.static_suffix
+        target = os.path.join(self.config.vdrdir,
+                              subtype)+self.config.static_suffix
         logging.debug("vdr target: %s" % target)
         return target
 
@@ -349,19 +350,19 @@ class LocalLinker:
             logging.debug("unlink %s" % os.path.join(self.config.mediadir,
                                                      subtype,
                                                      "local")
-            )
+                          )
             if self.config.use_i18n is True:
                 subtype = get_translation_for_path(subtype)[0]
             self.unlink(os.path.join(self.config.mediadir, subtype, "local"))
 
         for subtype, netdir in config.mediastaticmounts.iteritems():
-            subtype, localdir , host = self.prepare(subtype, netdir)
+            subtype, localdir, host = self.prepare(subtype, netdir)
             self.unlink(os.path.join(
                 self.config.mediadir,
                 subtype)+self.config.static_suffix)
 
         for subtype, netdir in config.vdrstaticmounts.iteritems():
-            subtype, localdir , host = self.prepare(subtype, netdir)
+            subtype, localdir, host = self.prepare(subtype, netdir)
             self.unlink(self.get_target("vdr", subtype, host))
             self.unlink(self.get_vdr_target(subtype, host))
             if self.config.job is None:
@@ -412,44 +413,45 @@ class AvahiService:
             )
 
     def service_resolved(self, interface, protocol, name, typ,
-                 domain, host, aprotocol, address,
-                 port, txt, flags):
+                         domain, host, aprotocol, address,
+                         port, txt, flags):
         attributes = []
         for attribute in txt:
             key, value = u"".join(map(chr, (c for c in attribute))).split("=")
             attributes.append("{key} = {value}".format(key=key, value=value))
         text = unicode(attributes)
-        print text
+        print(text)
         sharename = u"{share} on {host}".format(share=name, host=host)
         _sharename = u"{share} on {host}: {txt}".format(share=name,
-                                                       host=host,
-                                                       txt=text)
+                                                        host=host,
+                                                        txt=text)
         logging.debug("avahi-service resolved: %s" % _sharename)
         ip = ipaddr.IPAddress(address)
-        if (
-            len(
-            [ip_range for ip_range in self.config.ip_whitelist if ip in ip_range]
+        if (len(
+            [ip_range for ip_range in self.config.ip_whitelist
+             if ip in ip_range]
             ) >= 1
         and
             len(
-            [ip_range for ip_range in self.config.ip_blacklist if ip in ip_range]
+            [ip_range for ip_range in self.config.ip_blacklist
+             if ip in ip_range]
             ) == 0
         ):
             if not sharename in self.linked:
                 share = nfsService(
-                     config = config,
-                     interface=interface,
-                     protocol=protocol,
-                     name=name,
-                     typ=typ,
-                     domain=domain,
-                     host=host,
-                     aprotocol=aprotocol,
-                     address=address,
-                     port=port,
-                     txt=txt,
-                     flags=flags,
-                     sharename=sharename
+                    config=config,
+                    interface=interface,
+                    protocol=protocol,
+                    name=name,
+                    typ=typ,
+                    domain=domain,
+                    host=host,
+                    aprotocol=aprotocol,
+                    address=address,
+                    port=port,
+                    txt=txt,
+                    flags=flags,
+                    sharename=sharename
                 )
                 self.linked[sharename] = share
             else:
@@ -460,12 +462,12 @@ class AvahiService:
         else:
             logging.debug(
                 "skipped share {0} on {1}: IP {2} is set to be ignored".format(
-                name, host, address)
+                    name, host, address)
             )
 
     def service_removed(self, interface, protocol, name, typ, domain, flags):
         logging.info("service removed: %s %s %s %s %s %s" % (
-                                interface, protocol, name, typ, domain, flags))
+            interface, protocol, name, typ, domain, flags))
         if flags & avahi.LOOKUP_RESULT_LOCAL:
                 # local service, skip
                 pass
@@ -508,22 +510,24 @@ class nfsService:
                 if self.config.use_i18n is True:
                     self.category = get_translation_for_path(self.category)[0]
         if self.subtype:
-            self.basedir = os.path.join(self.config.mediadir,self.subtype)
+            self.basedir = os.path.join(self.config.mediadir, self.subtype)
         else:
             logging.error(
                 "subtype for service '{0}' not set!\nattributes: {1}".format(
-                 self.name,
-                 u"".join(map(chr, (c for c in attribute)))
+                    self.name,
+                    u"".join(map(chr, (c for c in attribute)))
                 )
             )
             return
         self.origin = self.get_origin()
         self.target = self.get_target()
         if self.subtype == "vdr":
-            if not self.wait_for_path(self.origin): return
+            if not self.wait_for_path(self.origin):
+                return
             else:
                 if self.config.use_hostname:
-                    self.safe_sharename = (lambda host: host.split('.')[0])(self.host)
+                    self.safe_sharename = (lambda host: host.split('.')[0])(
+                        self.host)
                 else:
                     self.safe_sharename = self.name
                 # sanitize name for windows clients (vdr with
@@ -531,17 +535,16 @@ class nfsService:
                 # or --fat option can display them properly)
                 if self.config.fat_safe_names:
                     for char in self.unsafe_chars:
-                        self.safe_sharename = self.safe_sharename.replace(char,
-                                                    "#{0:x}".format(ord(char)))
+                        self.safe_sharename = self.safe_sharename.replace(
+                            char, "#{0:x}".format(ord(char)))
                 # "/" is not allowed (would create a subdirectory)
                 self.safe_sharename = self.safe_sharename.replace(
-                                                    "/", "-").replace(" ", "_")
+                    "/", "-").replace(" ", "_")
                 self.sharename = "".join(
-                                         (self.config.nfs_prefix,
-                                          self.safe_sharename,
-                                          self.config.nfs_suffix)
-                                         )
-
+                    (self.config.nfs_prefix,
+                     self.safe_sharename,
+                     self.config.nfs_suffix)
+                    )
 
                 self.vdr_target = self.get_vdr_target()
                 if self.vdr_target:
@@ -551,30 +554,30 @@ class nfsService:
         else:
             self.create_link()
 
-
     def __getattr__(self, attr):
         # return None if attribute is undefined
         return self.__dict__.get(attr, None)
 
     def get_origin(self):
         return os.path.join(
-                     self.config.autofsdir,
-                     (lambda host: host.split('.')[0])(self.host),
-                     (lambda path: path if not path.startswith(
-                         os.path.sep) else path[1:])(self.path)
-                     )
+            self.config.autofsdir,
+            (lambda host: host.split('.')[0])(self.host),
+            (lambda path: path if not path.startswith(
+                os.path.sep) else path[1:])(self.path)
+            )
 
     def get_vdr_target(self):
         vdr_target = os.path.join(
             self.config.vdrdir,
             (lambda category: category if category is not None else "")(
                 self.category),
-             self.sharename
+            self.sharename
         )
         if os.path.abspath(vdr_target).startswith(self.config.vdrdir):
             return vdr_target
         else:
-            logging.error("Path %s is outside of vdrdir - ignoring" % vdr_target)
+            logging.error("Path %s is outside of vdrdir - ignoring" %
+                          vdr_target)
             return None
 
     def get_target(self):
@@ -606,15 +609,18 @@ class nfsService:
             try:
                 os.symlink(self.origin, self.target)
                 logging.debug(
-                "created symlink from {origin} to {target} for {share}".format(
-                  origin=self.origin, target=self.target, share=self.sharename
+                    "created symlink from {origin} to {target} for {share}".format(
+                        origin=self.origin, target=self.target,
+                        share=self.sharename
                     )
                 )
             except:
                 logging.debug(
                     "symlink from {origin} to {target} for {share} already exists".format(
-                    origin=self.origin, target=self.target, share=self.sharename)
-            )
+                        origin=self.origin, target=self.target,
+                        share=self.sharename
+                    )
+                )
 
     def create_extralink(self, target):
         if target and not os.path.islink(target) and not os.path.exists(target):
@@ -653,15 +659,16 @@ def update_recdir():
             dbus2vdr = bus.get_object('de.tvdr.vdr', '/Recordings')
             answer = dbus.Int32(0)
             anwer, message = dbus2vdr.Update(
-                                    dbus_interface = 'de.tvdr.vdr.recording')
+                dbus_interface='de.tvdr.vdr.recording')
             logging.info("Update recdir via dbus: %s %s", answer, message)
         else:
-                success, message = SVDRPConnection('127.0.0.1',
-                                config.svdrp_port).sendCommand("UPDR")
+                success, message = SVDRPConnection(
+                    '127.0.0.1',
+                    config.svdrp_port).sendCommand("UPDR")
                 logging.info("Update recdir via SVDRP: %s %s", success, message)
     except Exception as error:
         logging.exception(error)
-        updatepath = os.path.join(config.vdrdir,".update")
+        updatepath = os.path.join(config.vdrdir, ".update")
         try:
             logging.info(
                 "dbus unavailable, fallback to update %s" % updatepath)
@@ -669,35 +676,40 @@ def update_recdir():
             logging.info("set access time for .update")
         except:
             try:
-                logging.info("Create %s"  % updatepath)
+                logging.info("Create %s" % updatepath)
                 open(updatepath, 'a').close()
-                os.chown(updatepath, vdr)
+                os.chown(updatepath, "vdr")
                 logging.debug("created .update")
-            except: return True
+            except:
+                return True
     config.job = None
     config.updateJob = None
     return False
 
+
 def mkdir_p(path):
     try:
         os.makedirs(path)
-    except OSError as exc: # Python >2.5
+    except OSError as exc:
         if exc.errno == errno.EEXIST and os.path.isdir(path):
             pass
-        else: raise
+        else:
+            raise
+
 
 def get_translation_for_path(*args):
     answer = []
     for arg in args:
         elsub = []
-        arg = arg.lstrip(os.path.sep) #  remove leading path separator
+        arg = arg.lstrip(os.path.sep)  # remove leading path separator
         for element in arg.split('/'):
             elsub.append(_("%s" % element))
         element = "/".join(elsub)
         answer.append(element)
     return answer
 
-def sigint(**args): #signal, frame):
+
+def sigint(**args):
     logging.info("got %s" % signal)
     locallinker.unlink_all()
     avahiservice.unlink_all()
@@ -707,53 +719,49 @@ def sigint(**args): #signal, frame):
     gobject.MainLoop().quit()
     sys.exit(0)
 
+
 class Options():
     def __init__(self):
-        """self.parser = OptionParser()
-        self.parser.add_option("-c", "--config",
-                               dest="config",
-                               default='/etc/avahi-linker/default.cfg',
-                               metavar="CONFIG_FILE")"""
         self.argparser = argparse.ArgumentParser(
-                               description='link avahi announced nfs shares')
+            description='link avahi announced nfs shares')
         self.argparser.add_argument('-c', '--config', dest="config",
                                     action='append', help='config file(s)',
                                     default='/etc/avahi-linker/default.cfg',
                                     metavar="CONFIG_FILE"
-        )
+                                    )
 
     def get_options(self):
         options = vars(self.argparser.parse_args())
         return options
 
 if __name__ == "__main__":
-
     loop = DBusGMainLoop()
     options = Options()
     bus = dbus.SystemBus(mainloop=loop)
     gettext.install('avahi-linker', '/usr/share/locale', unicode=1)
     config = Config(options.get_options())
     locallinker = LocalLinker(config)
-    server = dbus.Interface( bus.get_object(avahi.DBUS_NAME, '/'),
-        'org.freedesktop.Avahi.Server')
+    server = dbus.Interface(bus.get_object(avahi.DBUS_NAME, '/'),
+                            'org.freedesktop.Avahi.Server')
 
-    sbrowser = dbus.Interface(bus.get_object(avahi.DBUS_NAME,
-        server.ServiceBrowserNew(avahi.IF_UNSPEC,
-            avahi.PROTO_UNSPEC, TYPE, 'local', dbus.UInt32(0))),
-        avahi.DBUS_INTERFACE_SERVICE_BROWSER)
+    sbrowser = dbus.Interface(
+        bus.get_object(avahi.DBUS_NAME,
+                       server.ServiceBrowserNew(
+                           avahi.IF_UNSPEC,
+                           avahi.PROTO_UNSPEC,
+                           NFS_TYPE, 'local', dbus.UInt32(0)
+                           )
+                       ),
+        avahi.DBUS_INTERFACE_SERVICE_BROWSER
+    )
     avahiservice = AvahiService(config)
     sbrowser.connect_to_signal("ItemNew", avahiservice.service_added)
     sbrowser.connect_to_signal("ItemRemove", avahiservice.service_removed)
     vdr_watchdog = checkDBus4VDR(bus, config, avahiservice)
-    atexit.register(sigint)
-    signal.signal(signal.SIGTERM, sigint)
-    signal.signal(signal.SIGINT, sigint)
+    mainloop = gobject.MainLoop()
     try:
-        mainloop = gobject.MainLoop()
         mainloop.run()
     except KeyboardInterrupt:
-        locallinker.unlink_all()
-        avahiservice.unlink_all()
-        print "got a keyboard interrupt"
-        sys.exit(0)
-
+        sigint("KeyboardInterrup")
+    except Exception as e:
+        sigint(e)
