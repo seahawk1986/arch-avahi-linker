@@ -22,7 +22,6 @@ import gobject
 import ipaddress
 import logging
 import os
-import pwd
 import shutil
 import signal
 import socket
