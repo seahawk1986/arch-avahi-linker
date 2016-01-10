@@ -18,8 +18,7 @@ import codecs
 import dbus
 import errno
 import gettext
-#import gobject
-from gi.repository import GObject as gobject
+from gi.repository import GObject
 import ipaddress
 import logging
 import os
@@ -368,15 +367,15 @@ class Config(BaseClass):
             try:
                 logging.debug("prevent double update")
                 try:
-                    gobject.source_remove(self.updateJob)
+                    GObject.source_remove(self.updateJob)
                 except:
                     pass
-                self.updateJob = gobject.timeout_add(250, update_recdir)
+                self.updateJob = GObject.timeout_add(250, update_recdir)
             except:
                 logging.warn("could not inhibit vdr rec updte")
-                self.updateJob = gobject.timeout_add(250, update_recdir)
+                self.updateJob = GObject.timeout_add(250, update_recdir)
         else:
-            self.updateJob = gobject.timeout_add(250, update_recdir)
+            self.updateJob = GObject.timeout_add(250, update_recdir)
 
 
 class LocalLinker(BaseClass):
@@ -446,7 +445,7 @@ class LocalLinker(BaseClass):
             self.unlink(self.get_target("vdr", subtype, host))
             self.unlink(self.get_vdr_target(subtype, host))
             if self.config.job is None:
-                self.config.job = gobject.timeout_add(500, update_recdir)
+                self.config.job = GObject.timeout_add(500, update_recdir)
 
 
 class AvahiService:
@@ -748,7 +747,7 @@ def update_recdir():
     finally:
         config.job = None
         config.updateJob = None
-        "we need to return false, so gobject won't run it again after timeout"
+        "we need to return false, so GObject won't run it again after timeout"
         return False
 
 
@@ -777,7 +776,7 @@ def sigint(*args, **kwargs):
     logging.debug('shutting down, vdr is running: %s' % config.vdr_running)
     if config.vdr_running:
         update_recdir()
-    gobject.MainLoop().quit()
+    GObject.MainLoop().quit()
     sys.exit(0)
 
 
@@ -822,7 +821,7 @@ if __name__ == "__main__":
     sbrowser.connect_to_signal("ItemRemove", avahiservice.service_removed,
                                byte_arrays=True)
     vdr_watchdog = checkDBus4VDR(bus, config, avahiservice)
-    mainloop = gobject.MainLoop()
+    mainloop = GObject.MainLoop()
     try:
         mainloop.run()
     except KeyboardInterrupt:
