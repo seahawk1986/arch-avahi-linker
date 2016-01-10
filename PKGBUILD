@@ -8,7 +8,7 @@ arch=('x86_64')
 url=""
 license=('GPL3')
 groups=()
-depends=('python2-gobject2' 'python2-dbus' "python2-gobject" "python2-ipaddr" 'autofs' 'avahi' 'dbus-glib')
+depends=('python-dbus' "python-gobject" 'autofs' 'avahi' 'dbus-glib')
 provides=('$pkgname')
 backup=("etc/avahi-linker/default.cfg")
 source=("avahi-linker.py"
@@ -19,7 +19,7 @@ source=("avahi-linker.py"
         "net_monitor.py"
         "update_monitor.py"
         "i18n.tar.gz")
-md5sums=('ad3402005e730b3d381fa53a46777a6a'
+md5sums=('c82dcb996cf23180ca7652b01401ce0d'
          'b7580daf31b8f400815a2afbd018c776'
          '697e658fa2b21f308c6dad67707efc1f'
          'a3713819d2321b8bc657d4eb36f91130'

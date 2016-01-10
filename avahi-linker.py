@@ -18,7 +18,8 @@ import codecs
 import dbus
 import errno
 import gettext
-import gobject
+#import gobject
+from gi.repository import GObject as gobject
 import ipaddress
 import logging
 import os
