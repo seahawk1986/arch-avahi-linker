@@ -8,8 +8,6 @@ Requires=avahi-daemon.service autofs.service network.target nfs-client.target db
 Type=simple
 ExecStart=/usr/bin/avahi-linker
 TimeoutSec=5
-KillMode=process
-KillSignal=SIGINT
 
 [Install]
 WantedBy=multi-user.target
