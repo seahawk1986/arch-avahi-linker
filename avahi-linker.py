@@ -38,7 +38,7 @@ NFS_TYPE = '_nfs._tcp'
 # --------------------------------------------------------------------------- #
 # From https://github.com/senufo/xbmc-vdrclient/blob/master/test_svdrp.py
 # Copyright (C) Kenneth Falck 2011.
-# edited by Alexander Grothe 2013
+# edited by Alexander Grothe 2013-2016
 # Distribution allowed under the Simplified BSD License.
 
 
@@ -55,16 +55,16 @@ class SVDRPClient(object):
         return self
 
     def __exit__(self, type, value, traceback):
+        self.telnet.send_command('QUIT')
         self.telnet.close()
 
     def send_command(self, line):
-        self.telnet.write(line.encode(self.encoding))
-        self.telnet.write(b'\n')
+        self.telnet.write((line + '\n').encode(self.encoding))
 
     def read_line(self):
         line = self.telnet.read_until(b'\n', 10).decode(self.encoding)
-        line = line.replace('\n', '').replace('\r', '')
-        self.encoding = line.split(';')[-1].strip().lower()
+        line = line.rstrip('\r\n')
+        self.encoding = line.rsplit(';', 1)[-1].strip().lower()
         if len(line) < 4:
             return None
         return int(line[0:3]), line[3] == '-', line[4:]
@@ -110,6 +110,28 @@ class BaseClass:
                 elsub.append(_("%s" % element))
             path = "/".join(elsub)
         return path
+
+    def create_link(self, origin, target):
+        if not os.path.exists(target) and not os.path.islink(target):
+            try:
+                self.mkdir_p(os.path.dirname(target))
+                logging.debug("creating directory {}".format(target))
+            except OSError as e:
+                logging.error(e)
+            try:
+                os.symlink(origin, target)
+                logging.debug("creating symlink from {} to {}".format(target,
+                                                                      origin))
+            except OSError as e:
+                logging.error(e)
+
+    def unlink(self, target):
+        if os.path.islink(target):
+            logging.debug("remove link %s" % target)
+            try:
+                os.unlink(target)
+            except OSError as e:
+                logging.error(e)
 
 
 class SVDRPConnection:
@@ -425,16 +447,6 @@ class LocalLinker(BaseClass):
             if self.config.job is None:
                 self.config.job = gobject.timeout_add(500, update_recdir)
 
-    def create_link(self, origin, target):
-        if not os.path.exists(target) and not os.path.islink(target):
-            self.mkdir_p(os.path.dirname(target))
-            os.symlink(origin, target)
-
-    def unlink(self, target):
-        if os.path.islink(target):
-            logging.debug("unlink static link %s" % target)
-            os.unlink(target)
-
 
 class AvahiService:
     def __init__(self, config):
@@ -668,7 +680,7 @@ class nfsService(BaseClass):
                 self.target = "%s for %s" % (self.target,
                                              self.config.hostname)
             try:
-                os.symlink(self.origin, self.target)
+                super().create_link(self.origin, self.target)
                 logging.debug(
                     "created symlink from {} to {} for {}".format(
                         origin=self.origin, target=self.target,
@@ -677,7 +689,7 @@ class nfsService(BaseClass):
                 )
             except:
                 logging.debug(
-                    "symlink from {} to {} for {} already exists".format(
+                    "symlink from '{}' to '{}' for '{}' already exists".format(
                         self.origin,
                         self.target,
                         self.sharename
@@ -706,11 +718,9 @@ class nfsService(BaseClass):
 
     def unlink(self):
         logging.debug("unlinking %s" % self.target)
-        if self.target and os.path.islink(self.target):
-            os.unlink(self.target)
+        super().unlink(self.target)
         if self.vdr_target and self.subtype == "vdr":
-            if os.path.islink(self.vdr_target):
-                os.unlink(self.vdr_target)
+            super().unlink(self.vdr_target)
             self.update_recdir()
 
 
