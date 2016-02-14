@@ -154,8 +154,8 @@ class SVDRPConnection:
                             success = True
                         answer.append((num, flag, message))
                     return success, answer
-            except ConnectionError:
-                logging.warn("SVDRP connection refused by VDR")
+            except OSError as e:
+                logging.warn("could not connect to vdr: %s", e.strerror)
                 return False, None
             except Exception as error:
                 logging.exception(error)
@@ -298,7 +298,9 @@ class Config(BaseClass):
             with codecs.open(self.options['config'], 'r', encoding='utf-8'
                              ) as f:
                 parser.readfp(f)
-        except (PermissionError, FileNotFoundError):
+        except OSError as e:
+            logging.exception("could not read config file %s: %s",
+                              self.options['config'], e.strerror)
             sys.exit("could not read config file {}".format(
                 self.options['config']))
         configdir = os.path.dirname(self.options['config'])
@@ -308,10 +310,8 @@ class Config(BaseClass):
             try:
                 with codecs.open(opt_config, 'r', encoding='utf-8') as f:
                     parser.readfp(f)
-            except FileNotFoundError:
-                print("{} not found".format(opt_config))
-            except PermissionError:
-                print("not allowed to access {}".format(opt_config))
+            except OSError as e:
+                print("could not open {}: {}".format(opt_config, e.strerror))
             except Exception as e:
                 print(e)
         return parser
@@ -578,7 +578,7 @@ class nfsService(BaseClass):
         else:
             raise AttributeError("missing subtype for share")
         if "category" in self.payload:
-            self.category = self._translate_path(self.payload['subtype'])
+            self.category = self._translate_path(self.payload['category'])
         if self.subtype:
             self.basedir = os.path.join(self.config.mediadir, self.subtype)
         else:
@@ -652,20 +652,15 @@ class nfsService(BaseClass):
             return None
 
     def get_target(self):
-        if self.subtype == "vdr":
-            target = os.path.join(
-                self.basedir,
-                (lambda category: category if category is not None else "")(
-                    self.category),
-                self.sharename
-            )
-        else:
-            return os.path.join(
-                self.basedir,
-                (lambda category: category if category is not None else "")(
-                    self.category),
-                self.sharename
-            )
+        category = (lambda category: category if category is not None else "")(
+            self.category)
+        print("get_target:\nbasedir:\t{}\nsharename:\t{}\ncategory:\t{}".format(
+            self.basedir, self.sharename, category))
+        target = os.path.join(
+            self.basedir,
+            category,
+            self.sharename
+        )
         if os.path.abspath(target).startswith(self.basedir):
             return target
         else:
@@ -740,9 +735,9 @@ def update_recdir():
                     logging.info(
                         "Update recdir via SVDRP: %s %s", success, message)
                 else:
-                    raise ConnectionError
+                    raise OSError.ConnectionError
         success = True
-    except (ConnectionError, dbus.exceptions.DBusException):
+    except (OSError, dbus.exceptions.DBusException):
         success = touch_update()
     finally:
         config.job = None
@@ -785,7 +780,7 @@ class Options():
         self.argparser = argparse.ArgumentParser(
             description='link avahi announced nfs shares')
         self.argparser.add_argument('-c', '--config', dest="config",
-                                    action='append', help='config file(s)',
+                                    action='store', help='config file(s)',
                                     default='/etc/avahi-linker/default.cfg',
                                     metavar="CONFIG_FILE"
                                     )
