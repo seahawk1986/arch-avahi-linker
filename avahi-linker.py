@@ -311,9 +311,11 @@ class Config(BaseClass):
                 with codecs.open(opt_config, 'r', encoding='utf-8') as f:
                     parser.readfp(f)
             except OSError as e:
-                print("could not open {}: {}".format(opt_config, e.strerror))
+                pass
             except Exception as e:
                 print(e)
+            else:
+                print("read config file {}".format(opt_config))
         return parser
 
     def set_up_netlist(self, netlist_name, default=[]):
@@ -652,8 +654,6 @@ class nfsService(BaseClass):
     def get_target(self):
         category = (lambda category: category if category is not None else "")(
             self.category)
-        print("get_target:\nbasedir:\t{}\nsharename:\t{}\ncategory:\t{}".format(
-            self.basedir, self.sharename, category))
         target = os.path.join(
             self.basedir,
             category,
