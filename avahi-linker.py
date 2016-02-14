@@ -508,7 +508,7 @@ class AvahiService:
             'port': port,
             'payload': self.read_payload(raw_payload),
             'flags': flags,
-            'sharename': sharename
+            'sharename': sharename,
         }
         _sharename = "{share} on {host}: {txt}".format(share=name,
                                                        host=host,
@@ -524,9 +524,9 @@ class AvahiService:
             [ip_range for ip_range in self.config.ip_blacklist
              if ip in ip_range]
         ):
-            if sharename not in self.linked:
+            if _sharename not in self.linked:
                 share = nfsService(attributes, self.config)
-                self.linked[sharename] = share
+                self.linked[_sharename] = share
             else:
                 logging.debug(
                     "skipped share {0} on {1}: already used".format(name,
@@ -592,37 +592,35 @@ class nfsService(BaseClass):
         self.origin = self.get_origin()
         if not self.origin:
             return
+        if self.config.use_hostname:
+            self.sharename = (lambda host: host.split('.')[0])(
+                self.host)
+        else:
+            self.sharename = self.name
         self.target = self.get_target()
         if self.subtype == "vdr":
-            if not self.wait_for_path(self.origin):
-                return
-            else:
-                if self.config.use_hostname:
-                    self.safe_sharename = (lambda host: host.split('.')[0])(
-                        self.host)
-                else:
-                    self.safe_sharename = self.name
-                # sanitize name for windows clients (vdr with
-                # --dirnames=,,1
-                # or --fat option can display them properly)
-                self.safe_sharename = self.replace_unsafe_chars(
-                    self.safe_sharename)
-                # "/" is not allowed (would create a subdirectory)
-                # " " would hinder the vdr to access a path
-                self.safe_sharename = self.safe_sharename.replace(
-                    "/", "-").replace(" ", "_")
-                self.sharename = "".join(
-                    (self.config.nfs_prefix,
-                     self.safe_sharename,
-                     self.config.nfs_suffix)
-                    )
+            # sanitize name for windows clients (vdr with
+            # --dirnames=,,1
+            # or --fat option can display them properly)
+            self.sharename = self.replace_unsafe_chars(
+                self.sharename)
+            # "/" is not allowed (would create a subdirectory)
+            # " " would hinder the vdr to access a path
+            self.sharename = self.sharename.replace(
+                "/", "-").replace(" ", "_")
+            self.sharename = "".join(
+                (self.config.nfs_prefix,
+                    self.sharename,
+                    self.config.nfs_suffix)
+                )
 
-                self.vdr_target = self.get_vdr_target()
-                if self.vdr_target:
-                    self.create_link()
-                    self.create_extralink(self.vdr_target)
-                    self.update_recdir()
+            self.vdr_target = self.get_vdr_target()
+            if self.vdr_target:
+                self.create_link()
+                self.create_extralink(self.vdr_target)
+                self.update_recdir()
         else:
+            self.sharename = self.safe_sharename
             self.create_link()
 
     def __getattr__(self, attr):
@@ -674,6 +672,8 @@ class nfsService(BaseClass):
             if self.subtype == "vdr":
                 self.target = "%s for %s" % (self.target,
                                              self.config.hostname)
+            elif self.config.use_hostname:
+                self.target = self.target
             try:
                 super().create_link(self.origin, self.target)
                 logging.debug(
