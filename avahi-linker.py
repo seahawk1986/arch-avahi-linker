@@ -48,6 +48,7 @@ class SVDRPClient(object):
         self.host = host
         self.port = port
         self.encoding = 'ascii'
+        self.changed_encoding = False
 
     def __enter__(self):
         self.telnet.open(self.host, self.port)
@@ -55,16 +56,19 @@ class SVDRPClient(object):
         return self
 
     def __exit__(self, type, value, traceback):
-        self.telnet.send_command('QUIT')
+        self.send_command('QUIT')
         self.telnet.close()
 
     def send_command(self, line):
+        logging.debug("encoding: %s", self.encoding)
         self.telnet.write((line + '\n').encode(self.encoding))
 
     def read_line(self):
         line = self.telnet.read_until(b'\n', 10).decode(self.encoding)
         line = line.rstrip('\r\n')
-        self.encoding = line.rsplit(';', 1)[-1].strip().lower()
+        if not self.changed_encoding:
+            self.encoding = line.rsplit(';', 1)[-1].strip().lower()
+            self.changed_encoding = True
         if len(line) < 4:
             return None
         return int(line[0:3]), line[3] == '-', line[4:]
@@ -159,7 +163,7 @@ class SVDRPConnection:
                 return False, None
             except Exception as error:
                 logging.exception(error)
-                logging.debug("could not conntect to VDR via SVDRP")
+                logging.debug("could not connect to VDR via SVDRP")
                 return False, None
 
     def __exit__(self, type, value, traceback):
